@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helium Vault - Movies, TV Shows & Anime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="/safe-postmessage.js"></script>
+    <script src="/tailwindcss.js"></script>
+    <script src="/scramjet/scramjet.js"></script>
+		<script src="/controller/controller.api.js"></script>
+		<script src="/host/host.js"></script>
+		<script src="/scram-host.js"></script>
+
+    <script type="module" src="/data.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 17, 26, 0.7);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-[#09090b] text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white flex flex-col antialiased">
+
+    <header class="sticky top-0 z-30 bg-[#111118]/90 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+        <div class="flex items-center gap-3 shrink-0">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-sky-400 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/20 shrink-0">
+                📺
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-base font-bold text-white tracking-tight">Helium Vault</h1>
+                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/35">Direct Stream</span>
+                </div>
+                <p class="text-xs text-slate-400">Curated Movies, TV Shows, Anime & Direct Streams</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-1 min-w-[260px] max-w-xl">
+            <div class="relative flex-1 min-w-[180px]">
+                <span class="absolute left-3.5 top-2.5 text-slate-400 text-sm">🔍</span>
+                <input id="searchInput" type="text" placeholder="Search by title, genre, synopsis..."
+                    class="w-full min-w-[180px] bg-black/45 border border-white/10 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all">
+                <button id="clearSearchBtn" class="hidden absolute right-2.5 top-2.5 text-slate-400 hover:text-white text-xs w-4 h-4 rounded-full bg-white/10 items-center justify-center">✕</button>
+            </div>
+
+            <select id="sortSelect" class="bg-black/45 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer shrink-0 max-w-[130px] sm:max-w-[150px] truncate" title="Sort media library">
+                <option value="featured">✨ Featured</option>
+                <option value="rating">⭐ Top Rated</option>
+                <option value="year-desc">📅 Newest</option>
+                <option value="title">🔤 Title A-Z</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="bg-[#14141d] border-b border-white/5 px-4 py-2.5 flex items-center justify-between gap-4 overflow-x-auto">
+        <div class="flex items-center gap-1.5 shrink-0" id="categoryTabs">
+            <button data-cat="movies" class="cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-500/30 transition-all cursor-pointer">
+                <span>🎬</span>
+                <span>Movies</span>
+                <span id="badge-movies" class="px-1.5 py-0.2 rounded-full bg-black/25 text-[10px]">0</span>
+            </button>
+            <button data-cat="tv" class="cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                <span>📺</span>
+                <span>TV Shows</span>
+                <span id="badge-tv" class="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px]">0</span>
+            </button>
+            <button data-cat="anime" class="cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                <span>⛩️</span>
+                <span>Anime</span>
+                <span id="badge-anime" class="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px]">0</span>
+            </button>
+            <button data-cat="manga" class="cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                <span>📚</span>
+                <span>Manga & Books</span>
+                <span id="badge-manga" class="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px]">0</span>
+            </button>
+            <button data-cat="apps" class="cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                <span>⚡</span>
+                <span>Apps & Tools</span>
+                <span id="badge-apps" class="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px]">0</span>
+            </button>
+            <button data-cat="proxies" class="cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                <span>🌐</span>
+                <span>Proxy Hub</span>
+                <span id="badge-proxies" class="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px]">0</span>
+            </button>
+        </div>
+
+        <div class="text-xs text-slate-400 shrink-0 font-mono hidden md:block">
+            Showing <span id="itemCount" class="font-bold text-white">0</span> items
+        </div>
+    </div>
+
+    <div class="px-4 py-2 bg-[#09090b]/70 border-b border-white/5 flex items-center gap-1.5 overflow-x-auto text-xs" id="genreContainer">
+        <span class="text-slate-500 font-medium shrink-0 mr-1">Filter:</span>
+        <button data-genre="all" class="genre-btn px-2.5 py-1 rounded-lg font-medium bg-white/10 text-white cursor-pointer hover:bg-white/20 transition-all shrink-0">All</button>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 overflow-y-auto">
+        <div id="mediaGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        </div>
+
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+            <div class="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center text-3xl mb-3 border border-white/10">
+                🔍
+            </div>
+            <h3 id="emptyTitle" class="text-base font-bold text-white mb-1">No titles found</h3>
+            <p id="emptyDesc" class="text-xs text-slate-400 max-w-sm">We couldn't find any results matching your search and filter criteria. Try clearing your filters.</p>
+            <button id="resetFiltersBtn" class="mt-4 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-all">
+                Reset All Filters
+            </button>
+        </div>
+    </main>
+
+    <div id="playerModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex flex-col p-2 md:p-6 items-center justify-center animate-in fade-in duration-200">
+        <div class="w-full max-w-6xl h-full max-h-[92vh] bg-[#111118] border border-white/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
+            
+            <div class="px-4 py-3 bg-[#14141d] border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-500/25 border border-indigo-500/40 flex items-center justify-center text-sm shrink-0">
+                        🎬
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h2 id="modalTitle" class="text-sm font-bold text-white truncate">Movie Title</h2>
+                            <span id="modalYearBadge" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10 text-slate-300">2024</span>
+                            <span id="modalPartBadge" class="hidden text-[10px] font-semibold px-2 py-0.2 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/35">Season 1</span>
+                        </div>
+                        <p id="modalGenreText" class="text-[11px] text-slate-400 truncate">Action • Adventure</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center bg-black/50 border border-white/10 rounded-lg p-0.5 text-[11px]">
+                        <button id="proxyDirectBtn" class="px-2.5 py-1 rounded font-bold bg-indigo-600 text-white transition-all">Direct</button>
+                        <button id="proxyScramjetBtn" class="px-2.5 py-1 rounded font-medium text-slate-400 hover:text-white transition-all" title="Route via Scramjet Proxy">Proxy SW</button>
+                    </div>
+
+                    <button id="openNewTabBtn" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs transition-all" title="Open Stream in New Window">
+                        ↗️
+                    </button>
+                    <button id="copyLinkBtn" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs transition-all" title="Copy Stream Link">
+                        📋
+                    </button>
+                    <button id="closeModalBtn" class="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 text-xs transition-all" title="Close Theater View">
+                        ✕
+                    </button>
+                </div>
+            </div>
+
+            <div id="modalPartsContainer" class="hidden px-4 py-2 bg-[#0a0b14] border-b border-white/5 flex items-center gap-2 overflow-x-auto shrink-0 text-xs">
+                <span class="text-slate-400 text-xs font-semibold shrink-0">Parts & Seasons:</span>
+                <div id="modalPartsList" class="flex items-center gap-2">
+                </div>
+            </div>
+
+            <div class="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
+                <iframe id="videoPlayerFrame" class="w-full h-full border-0 outline-none" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" src="about:blank"></iframe>
+                
+                <div id="folderBanner" class="hidden absolute inset-0 bg-[#0c0d18] flex flex-col items-center justify-center p-6 text-center">
+                    <div class="w-16 h-16 rounded-3xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-3xl mb-4">
+                        📂
+                    </div>
+                    <h3 id="folderTitle" class="text-lg font-bold text-white mb-1">Google Drive Media Directory</h3>
+                    <p class="text-xs text-slate-400 max-w-md mb-5">This title contains multiple files or an external archive directory. Click below to launch the files or open in proxied mode.</p>
+                    <div class="flex items-center gap-3">
+                        <button id="launchDriveBtn" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2">
+                            <span>🚀</span>
+                            <span>Launch Drive Folder</span>
+                        </button>
+                        <button id="launchProxyBtn" class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white border border-white/10 transition-all flex items-center gap-2">
+                            <span>🛡️</span>
+                            <span>Open in Proxied Browser</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-[#111322] border-t border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+                <div class="flex-1 min-w-0 pr-4">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                        <span id="modalRating" class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1">⭐ 8.5</span>
+                        <span id="modalDuration" class="text-xs text-slate-400">2h 15m</span>
+                        <span id="modalMood" class="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">Exciting</span>
+                        <span id="modalType" class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">Movie</span>
+                    </div>
+                    <p id="modalDescription" class="text-xs text-slate-300 line-clamp-2">Detailed synopsis of the movie...</p>
+                </div>
+                <div class="shrink-0 flex items-center gap-2">
+                    <button id="launchFullBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-md transition-all">
+                        Fullscreen Player
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let currentCategory = 'movies';
+        let currentGenre = 'all';
+        let searchQuery = '';
+        let sortOption = 'featured';
+        let currentActiveItem = null;
+        let currentActiveUrl = '';
+        let currentProxyMode = 'direct';
+
+        let MOVIES = [];
+        let TV_SHOWS = [];
+        let ANIME = [];
+        let MANGA = [];
+        let APPS = [];
+        let PROXIES = [];
+
+        function parseVaultDataset(raw) {
+            if (!raw) return;
+
+            if (Array.isArray(raw)) {
+                MOVIES = [];
+                TV_SHOWS = [];
+                ANIME = [];
+                MANGA = [];
+                APPS = [];
+                PROXIES = [];
+                raw.forEach(item => {
+                    const cat = (item.category || item.type || '').toLowerCase();
+                    if (cat.includes('movie')) MOVIES.push(item);
+                    else if (cat.includes('tv') || cat.includes('show') || cat.includes('series')) TV_SHOWS.push(item);
+                    else if (cat.includes('anime')) ANIME.push(item);
+                    else if (cat.includes('manga') || cat.includes('book')) MANGA.push(item);
+                    else if (cat.includes('app') || cat.includes('tool') || cat.includes('hack')) APPS.push(item);
+                    else if (cat.includes('prox') || cat.includes('link') || cat.includes('partner')) PROXIES.push(item);
+                    else MOVIES.push(item);
+                });
+                return;
+            }
+
+            MOVIES = raw.MOVIES || raw.movies || raw.VAULT_MOVIES || [];
+            TV_SHOWS = raw.TV_SHOWS || raw.tv || raw.tvShows || raw.VAULT_TV || [];
+            ANIME = raw.ANIME_DATA || raw.ANIME || raw.anime || raw.VAULT_ANIME || [];
+            if (raw.MANGA && raw.BOOKS) {
+                MANGA = [...raw.MANGA, ...raw.BOOKS];
+            } else {
+                MANGA = raw.manga || raw.MANGA || raw.books || raw.BOOKS || [];
+            }
+            if (raw.WINDOWS_APPS || raw.GIMKIT_HACKS) {
+                APPS = [...(raw.WINDOWS_APPS || []), ...(raw.GIMKIT_HACKS || [])];
+            } else {
+                APPS = raw.apps || raw.APPS || [];
+            }
+            if (raw.PROXY_GROUPS || raw.PARTNERS) {
+                PROXIES = [...(raw.PROXY_GROUPS || []), ...(raw.PARTNERS || [])];
+            } else {
+                PROXIES = raw.proxies || raw.PROXIES || [];
+            }
+        }
+
+        async function loadVaultData() {
+            try {
+                const mod = await import('/data.js?t=' + Date.now());
+                const raw = mod.VAULT_DATA || mod.default || (mod.movies ? mod : null) || mod;
+                parseVaultDataset(raw);
+            } catch (err) {
+                console.warn('Could not load /data.tsx via dynamic import, checking window.VAULT_DATA fallback:', err);
+                if (window.VAULT_DATA) {
+                    parseVaultDataset(window.VAULT_DATA);
+                }
+            }
+
+            updateBadges();
+            updateGenrePills();
+            renderGrid();
+        }
+
+        function getCategoryItems(cat) {
+            switch (cat) {
+                case 'movies': return MOVIES;
+                case 'tv': return TV_SHOWS;
+                case 'anime': return ANIME;
+                case 'manga': return MANGA;
+                case 'apps': return APPS;
+                case 'proxies': return PROXIES;
+                default: return MOVIES;
+            }
+        }
+
+        function updateBadges() {
+            document.getElementById('badge-movies').textContent = MOVIES.length;
+            document.getElementById('badge-tv').textContent = TV_SHOWS.length;
+            document.getElementById('badge-anime').textContent = ANIME.length;
+            document.getElementById('badge-manga').textContent = MANGA.length;
+            document.getElementById('badge-apps').textContent = APPS.length;
+            document.getElementById('badge-proxies').textContent = PROXIES.length;
+        }
+
+        function updateGenrePills() {
+            const items = getCategoryItems(currentCategory);
+            const genresSet = new Set();
+            items.forEach(item => {
+                if (Array.isArray(item.genre)) {
+                    item.genre.forEach(g => genresSet.add(g));
+                }
+            });
+
+            const genreContainer = document.getElementById('genreContainer');
+            genreContainer.innerHTML = `
+                <span class="text-slate-500 font-medium shrink-0 mr-1">Filter:</span>
+                <button data-genre="all" class="genre-btn px-2.5 py-1 rounded-lg font-medium ${currentGenre === 'all' ? 'bg-indigo-600 text-white font-bold' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'} cursor-pointer transition-all shrink-0">All</button>
+            `;
+
+            Array.from(genresSet).sort().forEach(genre => {
+                const btn = document.createElement('button');
+                btn.dataset.genre = genre;
+                const isActive = currentGenre === genre;
+                btn.className = `genre-btn px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-all shrink-0 ${isActive ? 'bg-indigo-600 text-white font-bold' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`;
+                btn.textContent = genre;
+                btn.onclick = () => {
+                    currentGenre = genre;
+                    updateGenrePills();
+                    renderGrid();
+                };
+                genreContainer.appendChild(btn);
+            });
+
+            genreContainer.querySelector('[data-genre="all"]').onclick = () => {
+                currentGenre = 'all';
+                updateGenrePills();
+                renderGrid();
+            };
+        }
+
+        // Proxied URLs now carry a per-controller prefix, so they must be produced by a live
+        // controller: prefer the shell's (same-origin parent), else this page's own.
+        function encodeForProxy(targetUrl) {
+            try {
+                if (window.parent && window.parent !== window && typeof window.parent.encodeProxyUrl === 'function') {
+                    return window.parent.encodeProxyUrl(targetUrl);
+                }
+            } catch (e) {}
+            try {
+                if (window.ScramjetHost && window.ScramjetHost.current) {
+                    return window.ScramjetHost.current.encodeUrl(targetUrl);
+                }
+            } catch (e) {
+                console.warn('[Vault] Proxy encode failed:', e);
+            }
+            return targetUrl;
+        }
+        if (window.ScramjetHost) {
+            window.ScramjetHost.boot().catch((err) => console.warn('[Vault] Scramjet unavailable:', err));
+        }
+
+        function getDriveEmbedUrl(url, mode) {
+            if (!url) return '';
+            let targetUrl = url;
+
+            if (url.includes('drive.google.com/file/d/')) {
+                const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                if (match && match[1]) {
+                    targetUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+                }
+            } else if (url.includes('drive.google.com/open?id=')) {
+                const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+                if (match && match[1]) {
+                    targetUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+                }
+            }
+
+            if (mode === 'scramjet') {
+                return encodeForProxy(targetUrl);
+            }
+
+            return targetUrl;
+        }
+
+        function renderGrid() {
+            const rawItems = getCategoryItems(currentCategory);
+            const q = searchQuery.toLowerCase().trim();
+
+            let filtered = rawItems.filter(item => {
+                if (currentGenre !== 'all') {
+                    if (!item.genre || !item.genre.includes(currentGenre)) return false;
+                }
+                if (q) {
+                    const titleMatch = (item.title || item.name || '').toLowerCase().includes(q);
+                    const descMatch = (item.description || '').toLowerCase().includes(q);
+                    const genreMatch = (item.genre || []).some(g => g.toLowerCase().includes(q));
+                    return titleMatch || descMatch || genreMatch;
+                }
+                return true;
+            });
+
+            filtered.sort((a, b) => {
+                const titleA = (a.title || a.name || '').toLowerCase();
+                const titleB = (b.title || b.name || '').toLowerCase();
+
+                if (sortOption === 'rating') {
+                    return parseFloat(b.rating || 0) - parseFloat(a.rating || 0);
+                } else if (sortOption === 'year-desc') {
+                    return parseInt(b.year || 0) - parseInt(a.year || 0);
+                } else if (sortOption === 'title') {
+                    return titleA.localeCompare(titleB);
+                }
+                if (a.isNewRelease && !b.isNewRelease) return -1;
+                if (!a.isNewRelease && b.isNewRelease) return 1;
+                return 0;
+            });
+
+            document.getElementById('itemCount').textContent = filtered.length;
+
+            const grid = document.getElementById('mediaGrid');
+            const empty = document.getElementById('emptyState');
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                empty.classList.remove('hidden');
+                empty.classList.add('flex');
+                const emptyTitle = document.getElementById('emptyTitle');
+                const emptyDesc = document.getElementById('emptyDesc');
+                if (emptyTitle && emptyDesc) {
+                    if (rawItems.length === 0) {
+                        const catNames = {
+                            movies: 'Movies',
+                            tv: 'TV Shows',
+                            anime: 'Anime Series',
+                            manga: 'Manga & Books',
+                            apps: 'Apps & Tools',
+                            proxies: 'Proxies & Links'
+                        };
+                        const catLabel = catNames[currentCategory] || currentCategory;
+                        emptyTitle.textContent = `No ${catLabel} in library yet`;
+                        emptyDesc.textContent = `Add your ${catLabel.toLowerCase()} entries in data.ts to populate this collection.`;
+                    } else {
+                        emptyTitle.textContent = "No titles found";
+                        emptyDesc.textContent = "We couldn't find any results matching your search and filter criteria. Try clearing your filters.";
+                    }
+                }
+                return;
+            }
+
+            empty.classList.add('hidden');
+            empty.classList.remove('flex');
+
+            grid.innerHTML = filtered.map(item => {
+                const title = item.title || item.name || 'Untitled';
+                const year = item.year || (item.owner ? `@${item.owner}` : '');
+                const rating = item.rating ? `⭐ ${item.rating}` : '';
+                const duration = item.duration || '';
+                const desc = item.description || '';
+                const isNew = item.isNewRelease;
+                const mood = item.mood || '';
+                const poster = item.image || item.logo || '';
+                const itemId = item.id;
+
+                return `
+                    <div data-id="${itemId}" class="media-card group relative bg-[#0f111e] hover:bg-[#141627] border border-white/10 hover:border-indigo-500/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col cursor-pointer hover:-translate-y-1">
+                        
+                        <div class="relative w-full aspect-[2/3] bg-gradient-to-br from-slate-900 to-indigo-950 overflow-hidden flex items-center justify-center">
+                            ${poster ? `
+                                <img src="${poster}" alt="${title}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-tr from-indigo-950 to-slate-900 text-slate-300\\'><span class=\\'text-3xl mb-1\\'>🎬</span><span class=\\'text-xs font-bold leading-tight line-clamp-2\\'>${title.replace(/'/g, "\\'")}</span></div>';">
+                            ` : `
+                                <div class="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-tr from-indigo-950 to-slate-900 text-slate-300">
+                                    <span class="text-3xl mb-1">⚡</span>
+                                    <span class="text-xs font-bold leading-tight line-clamp-2">${title}</span>
+                                </div>
+                            `}
+
+                            <div class="absolute inset-0 bg-gradient-to-t from-[#0f111e] via-transparent to-black/30"></div>
+
+                            <div class="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+                                ${isNew ? `
+                                    <span class="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-md">New</span>
+                                ` : '<span></span>'}
+
+                                ${rating ? `
+                                    <span class="px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-amber-300 text-[10px] font-bold border border-white/10 shadow-sm">${rating}</span>
+                                ` : ''}
+                            </div>
+
+                            <div class="absolute inset-0 bg-black/60 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl shadow-xl shadow-indigo-600/50 scale-90 group-hover:scale-100 transition-transform">
+                                    ▶️
+                                </div>
+                                <span class="text-xs font-bold text-white tracking-wide">Stream Now</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 flex flex-col flex-1 justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold text-white line-clamp-1 group-hover:text-indigo-400 transition-colors" title="${title}">${title}</h3>
+                                
+                                <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-1">
+                                    ${year ? `<span>${year}</span>` : ''}
+                                    ${year && duration ? `<span>•</span>` : ''}
+                                    ${duration ? `<span>${duration}</span>` : ''}
+                                </div>
+
+                                <p class="text-[11px] text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">${desc}</p>
+                            </div>
+
+                            ${mood ? `
+                                <div class="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+                                    <span class="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 truncate">${mood}</span>
+                                    <span class="text-slate-500">Watch ›</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('.media-card').forEach(card => {
+                card.onclick = () => {
+                    const id = card.dataset.id;
+                    const item = rawItems.find(i => i.id === id);
+                    if (item) {
+                        openPlayerModal(item);
+                    }
+                };
+            });
+        }
+
+        function openPlayerModal(item) {
+            currentActiveItem = item;
+            const modal = document.getElementById('playerModal');
+            
+            const title = item.title || item.name || 'Stream Viewer';
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalYearBadge').textContent = item.year || '';
+            document.getElementById('modalGenreText').textContent = (item.genre || []).join(' • ') || 'Stream';
+            document.getElementById('modalDescription').textContent = item.description || 'No overview available.';
+            document.getElementById('modalRating').textContent = item.rating ? `⭐ ${item.rating}` : '⭐ 8.0';
+            document.getElementById('modalDuration').textContent = item.duration || 'Full';
+            document.getElementById('modalMood').textContent = item.mood || 'Active';
+            document.getElementById('modalType').textContent = (item.type || currentCategory).toUpperCase();
+
+            const partsContainer = document.getElementById('modalPartsContainer');
+            const partsList = document.getElementById('modalPartsList');
+            const partBadge = document.getElementById('modalPartBadge');
+
+            if (Array.isArray(item.links) && item.links.length > 0) {
+                partsContainer.classList.remove('hidden');
+                partsContainer.classList.add('flex');
+                partsList.innerHTML = '';
+
+                item.links.forEach((linkObj, idx) => {
+                    const partBtn = document.createElement('button');
+                    partBtn.className = `px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all ${idx === 0 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`;
+                    partBtn.textContent = linkObj.part || linkObj.name || `Part ${idx + 1}`;
+                    partBtn.onclick = () => {
+                        partsList.querySelectorAll('button').forEach(b => {
+                            b.className = 'px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all bg-white/5 text-slate-300 hover:bg-white/10';
+                        });
+                        partBtn.className = 'px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all bg-indigo-600 text-white shadow-sm';
+                        partBadge.textContent = linkObj.part || `Part ${idx + 1}`;
+                        partBadge.classList.remove('hidden');
+                        loadStreamUrl(linkObj.url);
+                    };
+                    partsList.appendChild(partBtn);
+                });
+
+                partBadge.textContent = item.links[0].part || 'Part 1';
+                partBadge.classList.remove('hidden');
+                loadStreamUrl(item.links[0].url);
+            } else {
+                partsContainer.classList.add('hidden');
+                partsContainer.classList.remove('flex');
+                partBadge.classList.add('hidden');
+                loadStreamUrl(item.driveLink || item.link || '');
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function loadStreamUrl(url) {
+            currentActiveUrl = url;
+            const iframe = document.getElementById('videoPlayerFrame');
+            const folderBanner = document.getElementById('folderBanner');
+            const folderTitle = document.getElementById('folderTitle');
+
+            if (!url) {
+                iframe.src = 'about:blank';
+                return;
+            }
+
+            const isFolder = url.includes('/folders/') || url.includes('buzzheavier.com') || url.includes('pixeldrain.com');
+
+            if (isFolder) {
+                folderBanner.classList.remove('hidden');
+                folderBanner.classList.add('flex');
+                folderTitle.textContent = currentActiveItem ? (currentActiveItem.title || currentActiveItem.name) : 'External Media';
+                iframe.src = 'about:blank';
+            } else {
+                folderBanner.classList.add('hidden');
+                folderBanner.classList.remove('flex');
+                const embedUrl = getDriveEmbedUrl(url, currentProxyMode);
+                iframe.src = embedUrl;
+            }
+        }
+
+        function closePlayerModal() {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('videoPlayerFrame');
+            iframe.src = 'about:blank';
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            currentActiveItem = null;
+            currentActiveUrl = '';
+        }
+
+        document.getElementById('closeModalBtn').onclick = closePlayerModal;
+
+        const proxyDirectBtn = document.getElementById('proxyDirectBtn');
+        const proxyScramjetBtn = document.getElementById('proxyScramjetBtn');
+
+        function updateProxyButtons() {
+            [proxyDirectBtn, proxyScramjetBtn].forEach(b => {
+                b.className = 'px-2.5 py-1 rounded font-medium text-slate-400 hover:text-white transition-all';
+            });
+            if (currentProxyMode === 'direct') {
+                proxyDirectBtn.className = 'px-2.5 py-1 rounded font-bold bg-indigo-600 text-white transition-all';
+            } else if (currentProxyMode === 'scramjet') {
+                proxyScramjetBtn.className = 'px-2.5 py-1 rounded font-bold bg-indigo-600 text-white transition-all';
+            }
+        }
+
+        proxyDirectBtn.onclick = () => {
+            currentProxyMode = 'direct';
+            updateProxyButtons();
+            if (currentActiveUrl) loadStreamUrl(currentActiveUrl);
+        };
+        proxyScramjetBtn.onclick = () => {
+            currentProxyMode = 'scramjet';
+            updateProxyButtons();
+            if (currentActiveUrl) loadStreamUrl(currentActiveUrl);
+        };
+
+        document.getElementById('openNewTabBtn').onclick = () => {
+            if (currentActiveUrl) {
+                window.open(currentActiveUrl, '_blank');
+            }
+        };
+
+        document.getElementById('copyLinkBtn').onclick = () => {
+            if (currentActiveUrl) {
+                navigator.clipboard.writeText(currentActiveUrl).then(() => {
+                    const btn = document.getElementById('copyLinkBtn');
+                    const orig = btn.textContent;
+                    btn.textContent = '✅';
+                    setTimeout(() => btn.textContent = orig, 1500);
+                });
+            }
+        };
+
+        document.getElementById('launchDriveBtn').onclick = () => {
+            if (currentActiveUrl) {
+                window.open(currentActiveUrl, '_blank');
+            }
+        };
+        document.getElementById('launchProxyBtn').onclick = () => {
+            if (currentActiveUrl) {
+                window.open(encodeForProxy(currentActiveUrl), '_blank');
+            }
+        };
+
+        document.getElementById('launchFullBtn').onclick = () => {
+            const iframe = document.getElementById('videoPlayerFrame');
+            if (iframe.requestFullscreen) {
+                iframe.requestFullscreen();
+            } else if (iframe.webkitRequestFullscreen) {
+                iframe.webkitRequestFullscreen();
+            }
+        };
+
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearSearchBtn');
+
+        searchInput.oninput = (e) => {
+            searchQuery = e.target.value;
+            if (searchQuery) {
+                clearBtn.classList.remove('hidden');
+                clearBtn.classList.add('flex');
+            } else {
+                clearBtn.classList.add('hidden');
+                clearBtn.classList.remove('flex');
+            }
+            renderGrid();
+        };
+
+        clearBtn.onclick = () => {
+            searchInput.value = '';
+            searchQuery = '';
+            clearBtn.classList.add('hidden');
+            clearBtn.classList.remove('flex');
+            renderGrid();
+        };
+
+        document.getElementById('sortSelect').onchange = (e) => {
+            sortOption = e.target.value;
+            renderGrid();
+        };
+
+        document.querySelectorAll('.cat-btn').forEach(btn => {
+            btn.onclick = () => {
+                const cat = btn.dataset.cat;
+                currentCategory = cat;
+                currentGenre = 'all';
+
+                document.querySelectorAll('.cat-btn').forEach(b => {
+                    b.className = 'cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer';
+                });
+                btn.className = 'cat-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-500/30 transition-all cursor-pointer';
+
+                updateGenrePills();
+                renderGrid();
+            };
+        });
+
+        document.getElementById('resetFiltersBtn').onclick = () => {
+            currentGenre = 'all';
+            searchQuery = '';
+            searchInput.value = '';
+            clearBtn.classList.add('hidden');
+            clearBtn.classList.remove('flex');
+            updateGenrePills();
+            renderGrid();
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePlayerModal();
+            }
+        });
+
+        loadVaultData();
+    </script>
+</body>
+</html>

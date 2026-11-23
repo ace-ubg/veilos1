@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="https://cdn.jsdelivr.net/gh/DominumNetwork/Dominum@main/src/assets/images/transparent-dominum.png">
+<title>Pulse Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root {
+    --bg: #090814;
+    --accent: #8b5cf6;
+    --blue: #06b6d4;
+    --text: #f1f0fb;
+    --surface: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.12);
+    --glow: rgba(139, 92, 246, 0.35);
+  }
+
+  * { box-sizing: border-box; outline: none; }
+
+  body {
+    background-color: var(--bg);
+    background-image: 
+      radial-gradient(circle at 10% 15%, var(--glow) 0%, transparent 45%),
+      radial-gradient(circle at 90% 85%, rgba(6, 182, 212, 0.15) 0%, transparent 40%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 2rem;
+    overflow-x: hidden;
+    transition: background 0.4s ease, color 0.4s ease;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  .controls-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 2.5rem;
+    padding: 20px;
+    background: var(--surface);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.4), 0 0 20px rgba(0,0,0,0.2);
+    animation: slideDown 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .control-input {
+    padding: 12px 18px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-weight: 500;
+    font-size: 0.92rem;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  .control-input:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .control-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 18px var(--glow);
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  #searchBar { flex: 1 1 240px; }
+  
+  select.control-input {
+    cursor: pointer;
+    flex: 0 1 auto;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+    background-position: calc(100% - 18px) center, calc(100% - 12px) center;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 40px;
+  }
+  
+  select.control-input option {
+    background-color: #0c0b1a;
+    color: var(--text);
+  }
+
+  select.control-input optgroup {
+    background-color: #080712;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  #container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1.5rem;
+  }
+
+  @keyframes popIn {
+    0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .zone-item {
+    background: var(--surface);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    opacity: 0; 
+    animation: popIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+
+  .zone-item:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 18px 35px -8px var(--glow), 0 0 15px rgba(255,255,255,0.05);
+    border-color: var(--accent);
+    z-index: 2;
+  }
+
+  .img-wrapper {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background-color: rgba(0,0,0,0.4);
+  }
+
+  .zone-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  .zone-item:hover img { transform: scale(1.12); }
+
+  .zone-item button {
+    padding: 1rem 0.8rem;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.3s ease;
+  }
+
+  .zone-item:hover button { color: var(--accent); text-shadow: 0 0 10px var(--glow); }
+
+  #modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    padding: 2rem;
+    animation: fadeIn 0.3s ease forwards;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  #gameModal {
+    width: 100%;
+    max-width: 1240px;
+    height: 88vh;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 35px var(--glow);
+    transform: scale(0.95);
+    animation: modalPop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes modalPop { to { transform: scale(1); } }
+
+  #fullscreenHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.1rem 1.8rem;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid var(--border);
+  }
+
+  #gameTitle {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 0 12px var(--glow);
+  }
+
+  .header-controls { display: flex; gap: 10px; }
+
+  .header-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.6rem 1rem;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .header-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--glow);
+  }
+
+  #zoneFullscreenFrame {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: #000;
+  }
+
+  .alert-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    animation: fadeIn 0.3s ease forwards;
+  }
+
+  .alert-modal {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 460px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 25px var(--glow);
+    transform: translateY(30px);
+    animation: slideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes slideUp { to { transform: translateY(0); } }
+
+  .alert-modal h3 {
+    margin-top: 0;
+    font-size: 1.6rem;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px var(--glow);
+  }
+
+  .alert-modal p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text);
+    opacity: 0.85;
+    margin-bottom: 2rem;
+  }
+
+  .discord-link {
+    display: inline-block;
+    background: rgba(88, 101, 242, 0.25);
+    border: 1px solid #5865F2;
+    color: #fff;
+    text-decoration: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .discord-link:hover {
+    background: #5865F2;
+    box-shadow: 0 8px 20px rgba(88, 101, 242, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .primary-btn {
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    width: 100%;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .primary-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px var(--glow);
+  }
+
+  .theme-top-right {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.5rem;
+    z-index: 1000;
+  }
+
+  .theme-btn-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--surface);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 1.25rem;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 15px var(--glow);
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    line-height: 1;
+    padding: 0;
+  }
+
+  .theme-btn-trigger:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    transform: translateY(-2px) scale(1.08);
+    box-shadow: 0 12px 28px var(--glow);
+  }
+
+  .theme-popup {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 250px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 30px var(--glow);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 1001;
+    animation: popMenu 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes popMenu {
+    from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .theme-popup.show {
+    display: flex;
+  }
+
+  .theme-popup-header {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--blue);
+    letter-spacing: 1px;
+    padding: 6px 10px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .theme-option-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    width: 100%;
+  }
+
+  .theme-option-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border);
+    color: #fff;
+    transform: translateX(3px);
+  }
+
+  .theme-option-item.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 12px var(--glow);
+  }
+
+  .theme-color-preview {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="theme-top-right">
+  <button id="themeMenuBtn" class="theme-btn-trigger" onclick="toggleThemePopup(event)" title="Select Theme" aria-label="Select Theme">
+    🎨
+  </button>
+  
+  <div id="themePopup" class="theme-popup">
+    <div class="theme-popup-header">
+      <span>Color Theme</span>
+      <i data-lucide="sparkles"></i>
+    </div>
+    <button class="theme-option-item" onclick="pickTheme('default')">
+      <span class="theme-color-preview" style="background: #8b5cf6;"></span>
+      <span>Cosmic Violet</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('cyber')">
+      <span class="theme-color-preview" style="background: #10b981;"></span>
+      <span>Cyber Emerald</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('sunset')">
+      <span class="theme-color-preview" style="background: #f97316;"></span>
+      <span>Solar Flare</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('neon')">
+      <span class="theme-color-preview" style="background: #ec4899;"></span>
+      <span>Synth Magenta</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('darkred')">
+      <span class="theme-color-preview" style="background: #ef4444;"></span>
+      <span>Obsidian Crimson</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('dnv2')">
+      <span class="theme-color-preview" style="background: #ff00de;"></span>
+      <span>Tokyo Glitch</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('matrix')">
+      <span class="theme-color-preview" style="background: #00ff00;"></span>
+      <span>Matrix Code</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('frost')">
+      <span class="theme-color-preview" style="background: #38bdf8;"></span>
+      <span>Arctic Frost</span>
+    </button>
+    <button class="theme-option-item" onclick="pickTheme('deepblue')">
+      <span class="theme-color-preview" style="background: #3b82f6;"></span>
+      <span>Midnight Blue</span>
+    </button>
+  </div>
+</div>
+
+<div class="controls-wrapper" style="margin-top: 0.5rem; flex-wrap: wrap; gap: 0.6rem; align-items: center;">
+  <select id="providerSelect" class="control-input" onchange="handleProviderChange()" style="min-width: 250px; font-weight: 600;">
+    <optgroup label="⭐ Curated Collections & Vaults">
+      <option value="gn-math" selected>GN-Math / FreeBusiness (1,200+ Games)</option>
+      <option value="ckv">Chicken King's Vault (800+ Games)</option>
+      <option value="hydra">Hydra Network (500+ Games)</option>
+      <option value="lupine">LupineVault (400+ Games)</option>
+      <option value="3kh0">3kh0 Assets Library (300+ Games)</option>
+      <option value="3kh0lite">3kh0 Lite</option>
+      <option value="bloxypl">Bloxy Plays (HTML5, Emulators & Flash SWF)</option>
+      <option value="daknux">Daknux Zones</option>
+      <option value="frogies">Frogies Arcade</option>
+    </optgroup>
+    <optgroup label="🎮 Classic Libraries & Singlefiles">
+      <option value="alexr">Alexr's Worlds (Singlefile Games)</option>
+      <option value="ccported">CCPorted Classic Library</option>
+      <option value="googleclass">Google Classroom Games</option>
+      <option value="seraph">Dominum Seraph</option>
+      <option value="elite">Elite Gamez</option>
+      <option value="ugs">UGS Singlefile (Bubbls & Multi-repo)</option>
+      <option value="truffled">Truffled.lol Multi-Mirror</option>
+      <option value="blox">Bloxcraft UBG (Blockers)</option>
+      <option value="petezah">PeteZah Games</option>
+    </optgroup>
+    <optgroup label="🌐 Community & Stealth Vaults">
+      <option value="shuttle">Shuttle / ShuttleMath</option>
+      <option value="marz">The Marz Library</option>
+    </optgroup>
+  </select>
+
+  <select id="bloxyCategorySelect" class="control-input" style="display: none;" onchange="applyFilters()">
+    <option value="">All Formats (HTML / Retro / Flash)</option>
+    <option value="html">HTML5 Web Games</option>
+    <option value="emu">Retro Console Emulators</option>
+    <option value="swf">Flash SWF (Ruffle)</option>
+  </select>
+
+  <select id="truffledProxySelect" class="control-input" style="display: none;" onchange="loadGames()">
+    <option value="https://truffled.lol">truffled.lol (Default)</option>
+    <option value="https://classlink.com.de">classlink.com.de</option>
+    <option value="https://pamson.pl.sophiemaslowski.com">pamson.pl.sophiemaslowski.com</option>
+    <option value="https://lightspeed-sucks.9ibee.com">lightspeed-sucks.9ibee.com</option>
+  </select>
+
+  <select id="categorySelect" class="control-input" style="display: none;" onchange="applyFilters()">
+    <option value="">All Categories</option>
+    <option value="action">Action</option>
+    <option value="racing">Racing</option>
+    <option value="strategy">Strategy</option>
+    <option value="sports">Sports</option>
+    <option value="skill">Skill</option>
+    <option value="shooting">Shooting</option>
+    <option value="2 player">2 Player</option>
+    <option value="io">Io</option>
+  </select>
+
+  <input type="text" id="searchBar" class="control-input" placeholder="Search games in library..." oninput="applyFilters()" style="min-width: 180px; flex: 1;">
+  
+  <select id="sortSelect" class="control-input" onchange="applyFilters()" style="min-width: 130px;">
+    <option value="a-z">A-Z</option>
+    <option value="z-a">Z-A</option>
+    <option value="latest">Latest</option>
+    <option value="random">Random Shuffle</option>
+  </select>
+
+  <div id="gameCountBadge" style="display: flex; align-items: center; gap: 6px; padding: 0.5rem 0.9rem; background: rgba(122, 92, 255, 0.12); border: 1px solid rgba(122, 92, 255, 0.25); border-radius: 12px; color: var(--text); font-size: 0.85rem; font-weight: 600; white-space: nowrap;">
+    <i data-lucide="gamepad-2" style="color: var(--accent); width: 16px; height: 16px;"></i>
+    <span id="gameCountText">Loading...</span>
+  </div>
+</div>
+
+<div id="container"></div>
+
+<div id="modalOverlay">
+  <div id="gameModal">
+    <div id="fullscreenHeader">
+      <h2 id="gameTitle">Game Title</h2>
+      <div class="header-controls">
+        <button id="blankBtn" class="header-btn" title="Open in about:blank tab"><i data-lucide="external-link" style="width: 15px; height: 15px;"></i></button>
+        <button id="downloadBtn" class="header-btn" title="Download Game"><i data-lucide="download" style="width: 15px; height: 15px;"></i></button>
+        <button id="fullscreenBtn" class="header-btn" title="Fullscreen"><i data-lucide="maximize-2" style="width: 15px; height: 15px;"></i></button>
+        <button id="closeFullscreen" class="header-btn" title="Close"><i data-lucide="x" style="width: 15px; height: 15px;"></i></button>
+      </div>
+    </div>
+    <iframe id="zoneFullscreenFrame" allow="autoplay; fullscreen; gamepad; focus-without-user-activation *;" allowfullscreen="true"></iframe>
+  </div>
+</div>
+
+<div id="noticeModal" class="alert-backdrop">
+  <div class="alert-modal">
+    <h3>!Notice!</h3>
+    <p>I do not own these links; they belong to the truffled community. Please don't get pissed off, if you want a link removed, dm me on discord (<strong>dominus.elitus</strong>). Y'all should support fr support them tho :)</p>
+    <a href="https://discord.gg/vVqY36mzvj" target="_blank" class="discord-link"><i data-lucide="message-square" style="width: 14px; height: 14px;"></i> Truffled Discord</a>
+    <button id="noticeContinueBtn" class="primary-btn">Continue</button>
+  </div>
+</div>
+
+<div id="blockedModal" class="alert-backdrop">
+  <div class="alert-modal">
+    <h3 style="color: #ff4444;"><i data-lucide="ban" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"></i> Link Blocked!</h3>
+    <p>This truffled link appears to be blocked by your network. Please try selecting another one from the dropdown!</p>
+    <button onclick="document.getElementById('blockedModal').style.display='none'" class="primary-btn">Got it</button>
+  </div>
+</div>
+
+<script>
+const container = document.getElementById('container');
+const searchBar = document.getElementById('searchBar');
+const sortSelect = document.getElementById('sortSelect');
+const categorySelect = document.getElementById('categorySelect');
+const bloxyCategorySelect = document.getElementById('bloxyCategorySelect');
+const providerSelect = document.getElementById('providerSelect');
+const truffledProxySelect = document.getElementById('truffledProxySelect');
+const gameCountText = document.getElementById('gameCountText');
+
+const overlay = document.getElementById('modalOverlay');
+const iframe = document.getElementById('zoneFullscreenFrame');
+const closeBtn = document.getElementById('closeFullscreen');
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const gameTitle = document.getElementById('gameTitle');
+
+let allGames = [];
+let currentGame = null; 
+
+function getFallbackImage(name) {
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=141226&color=a78bfa&size=256&font-size=0.33&bold=true`;
+}
+
+function safeArray(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (typeof data === 'object') {
+    return Object.values(data);
+  }
+  return [];
+}
+
+function dedupeGames(games) {
+  const seen = new Set();
+  return games.filter(g => {
+    if (!g || !g.name) return false;
+    const clean = g.name.trim().toLowerCase();
+    if (seen.has(clean)) return false;
+    seen.add(clean);
+    return true;
+  });
+}
+
+function resolveGameUrl(url, provider) {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+
+  const cleanPath = url.replace(/^\//, '');
+
+  if (provider === 'seraph') {
+    return "https://cdn.jsdelivr.net/gh/a456pur/seraph@main/" + cleanPath;
+  }
+  if (provider === 'blox') {
+    return "https://cdn.jsdelivr.net/gh/1sunW/Bloxcraft-UBG@main/" + cleanPath;
+  }
+  return "https://cdn.jsdelivr.net/gh/1sunW/Bloxcraft-UBG@main/" + cleanPath;
+}
+
+function handleProviderChange() {
+  const provider = providerSelect.value;
+  const currentSort = sortSelect.value;
+  
+  sortSelect.innerHTML = `
+    <option value="a-z">A-Z</option>
+    <option value="z-a">Z-A</option>
+    <option value="latest">Latest to Oldest</option>
+    <option value="random">Random Shuffle</option>
+  `;
+
+  if (currentSort) {
+    sortSelect.value = currentSort;
+  } else {
+    sortSelect.value = 'a-z';
+  }
+
+  categorySelect.style.display = (provider === 'petezah' || provider === 'gn-math') ? 'block' : 'none';
+  categorySelect.value = '';
+
+  bloxyCategorySelect.style.display = (provider === 'bloxypl') ? 'block' : 'none';
+  bloxyCategorySelect.value = '';
+
+  if (provider === 'truffled') {
+    if (!localStorage.getItem('truffledNoticeSeen')) {
+      document.getElementById('noticeModal').style.display = 'flex';
+      return; 
+    }
+    truffledProxySelect.style.display = 'block';
+  } else {
+    truffledProxySelect.style.display = 'none';
+  }
+  
+  loadGames();
+}
+
+document.getElementById('noticeContinueBtn').onclick = () => {
+  localStorage.setItem('truffledNoticeSeen', 'true');
+  document.getElementById('noticeModal').style.display = 'none';
+  truffledProxySelect.style.display = 'block';
+  loadGames();
+};
+
+async function loadGames() {
+  container.innerHTML = '<div style="width:100%; text-align:center; padding: 3rem 1rem; color: var(--blue); font-size: 1.2rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"><i data-lucide="loader-2" class="spin-anim" style="animation: spin 1s linear infinite; width: 1.5rem; height: 1.5rem;"></i> <span>Fetching library games...</span></div>';
+  if (window.lucide) lucide.createIcons();
+  gameCountText.textContent = 'Loading...';
+  allGames = [];
+  const provider = providerSelect.value;
+
+  try {
+    if (provider === 'gn-math') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/freebuisness/assets/zones.json");
+      const rawZones = await response.json();
+      
+      allGames = rawZones.filter(g => g.id !== -1 && !g.name.startsWith("[!]")).map((z, index) => {
+        let coverUrl = (z.cover || "").replace('{COVER_URL}', '');
+        if(coverUrl.startsWith('/')) coverUrl = coverUrl.substring(1);
+
+        return {
+          provider: 'gn-math',
+          name: z.name,
+          cover: 'https://cdn.jsdelivr.net/gh/freebuisness/covers@main/' + coverUrl,
+          url: z.url,
+          isAbsolute: z.url.startsWith('http'),
+          addedOrder: index,
+          categories: z.category ? [z.category.toLowerCase()] : []
+        };
+      });
+
+    } else if (provider === 'ckv') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/carbonicality/ChickenKingsVault@main/games.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        const gameUrl = g?.html || g?.url;
+        if (!gameUrl) return null;
+        let img = g?.img || g?.image || g?.thumb;
+        return {
+          provider: 'ckv',
+          name: g?.name || g?.title || "Unknown Game",
+          cover: img ? "https://cdn.jsdelivr.net/gh/carbonicality/ChickenKingsVault@main/gameimages/" + img : getFallbackImage(g?.name || "Game"),
+          url: "https://cdn.jsdelivr.net/gh/carbonicality/ChickenKingsVault@main/gamefiles/" + gameUrl,
+          isAbsolute: true,
+          addedOrder: index
+        };
+      }).filter(Boolean);
+
+    } else if (provider === 'hydra') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/1234chromebook1234-creator/hh@main/gmes.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        if (!g) return null;
+        const file = g.file_name || g.link || g.url;
+        if (!file) return null;
+        let thumb = g.thumb || g.image || g.img;
+        if (thumb && !thumb.startsWith("http")) {
+          thumb = "https://cdn.jsdelivr.net/gh/1234chromebook1234-creator/hh@main/" + thumb.replace(/^\/+/, "");
+        }
+        return {
+          provider: 'hydra',
+          name: g.title || g.name || "Unknown Game",
+          cover: thumb || getFallbackImage(g.title || "Game"),
+          url: "https://cdn.jsdelivr.net/gh/1234chromebook1234-creator/hh@main/gmes/" + file,
+          isAbsolute: true,
+          addedOrder: index
+        };
+      }).filter(Boolean);
+
+    } else if (provider === 'lupine') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/tharun9772/LupineVault@main/assets/games.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        if (!g || !g.name) return null;
+        const enc = encodeURIComponent(g.name);
+        return {
+          provider: 'lupine',
+          name: g.name,
+          cover: "https://cdn.jsdelivr.net/gh/tharun9772/LupineVault@main/assets/images/games/tile/" + enc + ".png",
+          url: `https://cdn.jsdelivr.net/gh/tharun9772/LupineVault@main/games/files/${enc}/index.html`,
+          isAbsolute: true,
+          addedOrder: index
+        };
+      }).filter(Boolean);
+
+    } else if (provider === '3kh0') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/tharun9772/game-assets@main/3kh0/3kh0-assets.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((name, index) => ({
+        provider: '3kh0',
+        name: typeof name === 'string' ? name : (name.name || name.title || "3kh0 Game"),
+        cover: "https://raw.githack.com/tharun9772/3kh0-assets/main/" + name + "/splash.png",
+        url: "https://raw.githack.com/tharun9772/3kh0-assets/main/" + name + "/index.html",
+        isAbsolute: true,
+        addedOrder: index
+      }));
+
+    } else if (provider === '3kh0lite') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/tharun9772/game-assets@main/3kh0/3kh0-lite.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => ({
+        provider: '3kh0lite',
+        name: g.title || g.name || "Unknown Game",
+        cover: g.imgSrc ? "https://raw.githack.com/3kh0/3kh0-lite/main/" + g.imgSrc : getFallbackImage(g.title || "Game"),
+        url: "https://raw.githack.com/3kh0/3kh0-lite/main/" + (g.link || g.url || ""),
+        isAbsolute: true,
+        addedOrder: index
+      }));
+
+    } else if (provider === 'bloxypl') {
+      const [htmlData, emuData, swfData] = await Promise.all([
+        fetch("https://cdn.jsdelivr.net/gh/bloxys-playables/html-files@main/cdn-data/g.json").then(r => r.json()).catch(() => []),
+        fetch("https://cdn.jsdelivr.net/gh/bloxys-playables/emulator-files@main/cdn-data/g.json").then(r => r.json()).catch(() => []),
+        fetch("https://cdn.jsdelivr.net/gh/bloxys-playables/ruffle-files@main/cdn-data/g.json").then(r => r.json()).catch(() => [])
+      ]);
+
+      const htmlGames = safeArray(htmlData).map((g, i) => ({
+        provider: 'bloxypl',
+        format: 'html',
+        name: g.name || "Game",
+        cover: g.img || "https://cdn.jsdelivr.net/gh/bloxys-playables/html-files@main/cdn-data/html.png",
+        url: `https://cdn.jsdelivr.net/gh/bloxys-playables/html-files@main/${encodeURIComponent(g.name)}.html`,
+        isAbsolute: true,
+        addedOrder: i
+      }));
+
+      const emuGames = safeArray(emuData).map((g, i) => ({
+        provider: 'bloxypl',
+        format: 'emu',
+        name: g.name || "Retro Game",
+        cover: g.img || "https://cdn.jsdelivr.net/gh/bloxys-playables/emulator-files@main/cdn-data/emu.png",
+        url: `https://cdn.jsdelivr.net/gh/bloxys-playables/emulator-files@main/${encodeURIComponent(g.name)}.html`,
+        isAbsolute: true,
+        addedOrder: htmlGames.length + i
+      }));
+
+      const swfGames = safeArray(swfData).map((g, i) => ({
+        provider: 'bloxypl',
+        format: 'swf',
+        name: g.name || "Flash Game",
+        cover: g.img || "https://cdn.jsdelivr.net/gh/bloxys-playables/ruffle-files@main/cdn-data/swf.png",
+        url: `https://cdn.jsdelivr.net/gh/bloxys-playables/ruffle-files@main/${encodeURIComponent(g.name)}.swf`,
+        isAbsolute: true,
+        addedOrder: htmlGames.length + emuGames.length + i
+      }));
+
+      allGames = [...htmlGames, ...emuGames, ...swfGames];
+
+    } else if (provider === 'daknux') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/daknux/assets/zones.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).filter(g => g.id !== -1 && g.name && !g.name.startsWith("[!]")).map((g, index) => {
+        const coverPath = (g.cover || "").replace("{COVER_URL}", "").replace(/^\/+/, "");
+        return {
+          provider: 'daknux',
+          name: g.name,
+          cover: coverPath ? "https://cdn.jsdelivr.net/gh/daknux/covers@main/" + coverPath : getFallbackImage(g.name),
+          url: "https://cdn.jsdelivr.net/gh/daknux/assets@main/" + (g.url || g.id),
+          isAbsolute: true,
+          addedOrder: index
+        };
+      });
+
+    } else if (provider === 'frogies') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/tharun9772/game-assets@main/libraries/frogies/gms.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => ({
+        provider: 'frogies',
+        name: g.title || g.name || "Unknown Game",
+        cover: g.IMG || g.img || getFallbackImage(g.title || "Game"),
+        url: g.URL || g.url || "",
+        isAbsolute: (g.URL || g.url || "").startsWith("http"),
+        addedOrder: index
+      }));
+
+    } else if (provider === 'alexr') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/dskjfoisjfsjio/alexrsworld@latest/singlefilegames.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        const title = g.title || g.name || "Unknown Game";
+        return {
+          provider: 'alexr',
+          name: title,
+          cover: g.img || getFallbackImage(title),
+          url: `https://cdn.jsdelivr.net/gh/dskjfoisjfsjio/alexrsworld@latest/${encodeURIComponent(title)}.html`,
+          isAbsolute: true,
+          addedOrder: index
+        };
+      });
+
+    } else if (provider === 'ccported') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/tharun9772/game-assets@main/ccported-stupid-game-lib.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        const id = g?.Id || g?.id;
+        let img = g?.img || g?.image || g?.thumb;
+        if (!img && g?.base) img = g.base + "/thumb.jpg";
+        let gameUrl = g?.url || (g?.base ? g.base + "/index.html" : "");
+        return {
+          provider: 'ccported',
+          name: g.name || g.title || "Classic Game " + (id || index),
+          cover: img || getFallbackImage(g.name || "Game"),
+          url: gameUrl,
+          isAbsolute: gameUrl.startsWith("http"),
+          addedOrder: index
+        };
+      });
+
+    } else if (provider === 'googleclass') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/bloxcraft-st/google-class-files@main/assets/games.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => ({
+        provider: 'googleclass',
+        name: g.name || "Unknown Game",
+        cover: g.img || getFallbackImage(g.name || "Game"),
+        url: "https://cdn.jsdelivr.net/gh/bloxcraft-st/google-class-files@main/" + g.url,
+        isAbsolute: true,
+        addedOrder: index
+      }));
+
+    } else if (provider === 'blox') {
+      const response = await fetch('https://cdn.jsdelivr.net/gh/1sunW/Bloxcraft-UBG@main/games/blockers.json');
+      const data = await response.json();
+      
+      allGames = safeArray(data).map((g, index) => {
+        let cleanedUrl = (g.url || "").replace('/app-viewer/?view=/', '/');
+        if (cleanedUrl && !cleanedUrl.endsWith('index.html') && !cleanedUrl.endsWith('.html')) {
+          cleanedUrl = cleanedUrl.replace(/\/?$/, '/') + 'index.html';
+        }
+        return {
+          provider: 'blox',
+          name: g.name || "Blox Game",
+          cover: g.img || getFallbackImage(g.name || "Game"),
+          url: resolveGameUrl(cleanedUrl, 'blox'),
+          isAbsolute: true,
+          addedOrder: index
+        };
+      });
+
+    } else if (provider === 'elite') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/1234chromebook1234-creator/ww@main/games.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        let gameTitle = g.title || g.name || "Unknown Game";
+        let gameUrl = g.url || "";
+        if (!gameUrl.startsWith('http')) {
+          gameUrl = "https://cdn.jsdelivr.net/gh/1234chromebook1234-creator/ww@main/" + gameUrl;
+        }
+        return {
+          provider: 'elite',
+          name: gameTitle,
+          cover: g.image ? ('https://cdn.jsdelivr.net/gh/1234chromebook1234-creator/ww@main/' + g.image) : getFallbackImage(gameTitle),
+          url: gameUrl,
+          isAbsolute: true,
+          addedOrder: index
+        };
+      });
+
+    } else if (provider === 'ugs') {
+      try {
+        const r = await fetch("https://raw.githack.com/bubbls/ugs-singlefile/main/games.js");
+        const text = await r.text();
+        const arrayMatch = text.match(/let\s+files\s*=\s*\[([\s\S]*?)\];/);
+        let extractedFiles = [];
+        if (arrayMatch) {
+          const stringRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'/g;
+          let match;
+          while ((match = stringRegex.exec(arrayMatch[1])) !== null) {
+            extractedFiles.push(match[1] || match[2]);
+          }
+        }
+        allGames = extractedFiles.filter(f => f && f.toLowerCase().startsWith("cl")).map((f, i) => {
+          const normalizedName = f.includes(".") && f.lastIndexOf(".") > 0 ? f : f + ".html";
+          const displayName = f.replace(/^cl/i, "").replace(/\.html$/i, "");
+          return {
+            provider: 'ugs',
+            name: displayName.charAt(0).toUpperCase() + displayName.slice(1),
+            cover: "https://cdn.jsdelivr.net/gh/tharun9772/game-assets@main/5968517.png",
+            url: `https://cdn.jsdelivr.net/gh/bubbls/ugs-singlefile@main/UGS-Files/${encodeURIComponent(normalizedName)}`,
+            isAbsolute: true,
+            addedOrder: i
+          };
+        });
+      } catch (e) {
+        console.warn("UGS fallback error:", e);
+      }
+
+    } else if (provider === 'truffled') {
+      const proxyBase = truffledProxySelect.value.replace(/\/$/, "");
+      const response = await fetch("https://cdn.jsdelivr.net/gh/aukak/truffled@main/public/js/json/g.json");
+      const data = await response.json();
+      
+      allGames = (data.games || []).map((g, index) => {
+        let rawUrl = g.url; 
+        let gameUrl = g.url;
+        let thumb = g.thumbnail || "";
+        
+        if (!gameUrl.startsWith('http')) {
+          gameUrl = proxyBase + (gameUrl.startsWith('/') ? '' : '/') + gameUrl;
+        }
+        if (!thumb.startsWith('http')) {
+          thumb = proxyBase + (thumb.startsWith('/') ? '' : '/') + thumb;
+        }
+
+        return {
+          provider: 'truffled',
+          name: g.name,
+          cover: thumb || getFallbackImage(g.name),
+          url: gameUrl,
+          rawUrl: rawUrl, 
+          isAbsolute: g.url.startsWith('http'),
+          frameType: g.frameType || 'iframe',
+          addedOrder: index 
+        };
+      });
+
+    } else if (provider === 'seraph') {
+      const response = await fetch('https://cdn.jsdelivr.net/gh/DominumNetwork/dominum@main/src/assets/libraries/seraph/games.json');
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        const gamePath = g.url.endsWith('index.html') ? g.url : g.url.replace(/\/?$/, '/index.html');
+        return {
+          provider: 'seraph',
+          name: g.name,
+          cover: g.img ? g.img : getFallbackImage(g.name),
+          url: resolveGameUrl(gamePath, 'seraph'),
+          isAbsolute: true,
+          addedOrder: index
+        };
+      });
+
+    } else if (provider === 'petezah') {
+      const response = await fetch("https://cdn.jsdelivr.net/gh/PeteZah-G/singlefile-json@main/search.json");
+      const data = await response.json();
+
+      allGames = (data.games || []).map((g, index) => {
+        let finalUrl = g.url;
+        if (finalUrl && !finalUrl.endsWith('index.html') && !finalUrl.match(/\.\w+$/)) {
+          finalUrl = finalUrl.replace(/\/$/, '') + '/index.html';
+        }
+        return {
+          provider: 'petezah',
+          name: g.label,
+          cover: g.imageUrl || getFallbackImage(g.label),
+          url: finalUrl,
+          isAbsolute: finalUrl.startsWith('http'),
+          addedOrder: index,
+          categories: g.categories || []
+        };
+      });
+
+    } else if (provider === 'shuttle') {
+      const response = await fetch("https://raw.githubusercontent.com/1sunW/Bloxcraft-UBG/main/games/data/json/shuttleproxy.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        if (!g || !g.name || !g.root) return null;
+        const cleanRoot = g.root.endsWith('/') ? g.root : g.root + '/';
+        const cleanImg = g.img ? (g.img.startsWith('/') ? g.img.slice(1) : g.img) : '';
+        return {
+          provider: 'shuttle',
+          name: g.name,
+          cover: "https://assets.shuttlemath.com/" + cleanRoot + cleanImg,
+          url: "https://assets.shuttlemath.com/" + g.root,
+          isAbsolute: true,
+          addedOrder: index
+        };
+      }).filter(Boolean);
+
+    } else if (provider === 'marz') {
+      const response = await fetch("https://raw.githubusercontent.com/1sunW/Bloxcraft-UBG/main/games/data/json/the-marz-lib.json");
+      const data = await response.json();
+
+      allGames = safeArray(data).map((g, index) => {
+        if (!g || !g.title || !g.url) return null;
+        return {
+          provider: 'marz',
+          name: g.title,
+          cover: "https://themarzlibrary.org" + g.img,
+          url: "https://themarzlibrary.org" + g.url,
+          isAbsolute: true,
+          addedOrder: index
+        };
+      }).filter(Boolean);
+    }
+
+    allGames = dedupeGames(allGames);
+    applyFilters();
+
+  } catch (e) {
+    console.error("Game loading failed:", e);
+    container.innerHTML = '<div style="width:100%; text-align:center; padding: 2.5rem; color: #ff5555; background: rgba(255,0,0,0.06); border-radius: 16px; border: 1px solid rgba(255,0,0,0.2);"><i data-lucide="triangle-alert" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem auto; display: block;"></i>Failed to fetch games from this provider. Please try another provider from the dropdown.</div>';
+    if (window.lucide) lucide.createIcons();
+    gameCountText.textContent = '0 Games';
+  }
+}
+
+function applyFilters() {
+  const query = searchBar.value.toLowerCase().trim();
+  const sortMethod = sortSelect.value;
+  const categoryFilter = categorySelect.value.toLowerCase();
+  const formatFilter = bloxyCategorySelect.value.toLowerCase();
+
+  let filtered = allGames.filter(g => {
+    const matchesQuery = !query || g.name.toLowerCase().includes(query);
+    const matchesCategory = !categoryFilter || (g.categories && g.categories.includes(categoryFilter));
+    const matchesFormat = !formatFilter || g.format === formatFilter;
+    return matchesQuery && matchesCategory && matchesFormat;
+  });
+
+  if (sortMethod === 'a-z') filtered.sort((a, b) => a.name.localeCompare(b.name));
+  else if (sortMethod === 'z-a') filtered.sort((a, b) => b.name.localeCompare(a.name));
+  else if (sortMethod === 'latest') filtered.sort((a, b) => (b.addedOrder || 0) - (a.addedOrder || 0));
+  else if (sortMethod === 'random') filtered.sort(() => Math.random() - 0.5);
+
+  gameCountText.textContent = `${filtered.length} Game${filtered.length === 1 ? '' : 's'}`;
+  displayGames(filtered);
+}
+
+function displayGames(games) {
+  container.innerHTML = '';
+  if (games.length === 0) {
+    container.innerHTML = '<div style="width:100%; grid-column: 1 / -1; text-align:center; padding: 3rem; color: var(--text); opacity: 0.7; font-size: 1.1rem;"><i data-lucide="search" style="width: 2.5rem; height: 2.5rem; margin: 0 auto 0.8rem auto; display:block; opacity: 0.4;"></i>No games found matching your search.</div>';
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  games.forEach((game, index) => {
+    const item = document.createElement('div');
+    item.className = 'zone-item';
+    
+    const delay = Math.min(index * 0.02, 0.8);
+    item.style.animationDelay = `${delay}s`;
+
+    const imgWrapper = document.createElement('div');
+    imgWrapper.className = 'img-wrapper';
+
+    const img = document.createElement('img');
+    img.dataset.src = game.cover;
+    img.alt = game.name;
+    img.loading = 'lazy';
+    img.onerror = () => {
+      img.src = game.fallbackCover || getFallbackImage(game.name);
+    };
+
+    const btn = document.createElement('button');
+    btn.textContent = game.name;
+    btn.title = game.name;
+    
+    item.onclick = () => openGame(game);
+    btn.onclick = (e) => { e.stopPropagation(); openGame(game); };
+
+    imgWrapper.appendChild(img);
+    item.appendChild(imgWrapper);
+    item.appendChild(btn);
+    fragment.appendChild(item);
+  });
+
+  container.appendChild(fragment);
+
+  const imgs = document.querySelectorAll('img[data-src]');
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const img = e.target;
+        img.src = img.dataset.src;
+        obs.unobserve(img);
+      }
+    });
+  }, { rootMargin: '120px', threshold: 0.05 });
+  imgs.forEach(i => observer.observe(i));
+}
+
+async function openGame(game) {
+  currentGame = game;
+  overlay.style.display = 'flex';
+  gameTitle.textContent = game.name;
+
+  let fullUrl = game.url;
+  if (game.provider === 'gn-math' && !game.isAbsolute) {
+    fullUrl = 'https://cdn.jsdelivr.net/gh/freebuisness/html@main/' + game.url.replace('{HTML_URL}', '');
+  }
+
+  const needsBlobFix = ['blox', 'elite', 'ugs', 'gn-math', 'seraph', 'ckv', 'hydra', 'lupine', '3kh0', '3kh0lite', 'alexr', 'petezah'];
+
+  if (needsBlobFix.includes(game.provider)) {
+    try {
+      const response = await fetch(fullUrl);
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      let htmlContent = await response.text();
+      
+      const baseUrl = fullUrl.replace(/\/[^\/]*$/, '/');
+      if (!htmlContent.match(/<head[^>]*>/i)) {
+        htmlContent = htmlContent.replace(/<html[^>]*>/i, '$&<head><base href="' + baseUrl + '"></head>');
+      } else {
+        htmlContent = htmlContent.replace(/<head[^>]*>/i, '$&<base href="' + baseUrl + '">');
+      }
+
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
+      iframe.src = blobUrl;
+      iframe.onload = () => URL.revokeObjectURL(blobUrl);
+      return;
+    } catch (e) {
+      console.warn("Blob conversion fallback to direct URL:", e);
+      iframe.src = fullUrl;
+      return;
+    }
+  }
+
+  if (game.provider === 'truffled') {
+    if (game.frameType === 'unity') {
+      const proxyBase = truffledProxySelect.value.replace(/\/$/, "");
+      iframe.src = `${proxyBase}/unityframe.html?url=${encodeURIComponent(game.rawUrl)}`;
+    } else {
+      iframe.src = game.url; 
+    }
+    return;
+  }
+
+  iframe.src = fullUrl;
+}
+
+downloadBtn.onclick = async () => {
+  if (!currentGame) return;
+
+  let fileContent = "";
+  let fullUrl = currentGame.url;
+
+  if (currentGame.provider === 'gn-math' && !currentGame.isAbsolute) {
+    fullUrl = 'https://cdn.jsdelivr.net/gh/freebuisness/html@main/' + currentGame.url.replace('{HTML_URL}', '');
+  }
+
+  try {
+    const response = await fetch(fullUrl);
+    if (!response.ok) throw new Error("CORS or Network Error");
+    fileContent = await response.text();
+  } catch (error) {
+    fileContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${currentGame.name}</title><style>body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; } iframe { width: 100%; height: 100%; border: none; }</style></head><body><iframe src="${fullUrl}" allowfullscreen="true"></iframe></body></html>`;
+  }
+
+  const blob = new Blob([fileContent], { type: 'text/html' });
+  const downloadUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = `${currentGame.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(downloadUrl);
+};
+
+closeBtn.onclick = () => {
+  overlay.style.display = 'none';
+  iframe.src = '';
+  currentGame = null;
+};
+
+overlay.onclick = (e) => {
+  if (e.target === overlay) closeBtn.click();
+};
+
+fullscreenBtn.onclick = () => {
+  iframe.requestFullscreen().catch(() => alert('Fullscreen mode is not supported or blocked.'));
+};
+
+const blankBtn = document.getElementById('blankBtn');
+
+blankBtn.addEventListener('click', () => {
+  const currentUrl = iframe.src;
+  if (!currentUrl) return;
+
+  const blankWin = window.open('about:blank', '_blank');
+  if (!blankWin) {
+    alert("Please allow pop-ups to open games in a blank tab.");
+    return;
+  }
+
+  const doc = blankWin.document;
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <title>Google Drive</title>
+      <link rel="icon" href="https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png">
+      <style>
+        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #000; }
+        iframe { width: 100%; height: 100%; border: none; }
+      </style>
+    </head>
+    <body>
+      <iframe src="${currentUrl}" allow="autoplay; fullscreen; gamepad; focus-without-user-activation *;" allowfullscreen="true"></iframe>
+    </body>
+    </html>
+  `);
+  doc.close();
+});
+
+handleProviderChange();
+</script>
+
+<script>
+const root = document.documentElement;
+const themeSelect = document.getElementById('themeSelect');
+
+const themes = {
+  default: {
+    "--bg": "#090814",
+    "--accent": "#8b5cf6",
+    "--blue": "#06b6d4",
+    "--text": "#f1f0fb",
+    "--surface": "rgba(255, 255, 255, 0.05)",
+    "--border": "rgba(255, 255, 255, 0.12)",
+    "--glow": "rgba(139, 92, 246, 0.35)"
+  },
+  cyber: {
+    "--bg": "#040d0c",
+    "--accent": "#10b981",
+    "--blue": "#22c55e",
+    "--text": "#ecfdf5",
+    "--surface": "rgba(16, 185, 129, 0.06)",
+    "--border": "rgba(16, 185, 129, 0.2)",
+    "--glow": "rgba(16, 185, 129, 0.35)"
+  },
+  sunset: {
+    "--bg": "#140808",
+    "--accent": "#f97316",
+    "--blue": "#eab308",
+    "--text": "#fff7ed",
+    "--surface": "rgba(249, 115, 22, 0.06)",
+    "--border": "rgba(249, 115, 22, 0.2)",
+    "--glow": "rgba(249, 115, 22, 0.35)"
+  },
+  neon: {
+    "--bg": "#12041c",
+    "--accent": "#ec4899",
+    "--blue": "#06b6d4",
+    "--text": "#fdf2f8",
+    "--surface": "rgba(236, 72, 153, 0.06)",
+    "--border": "rgba(236, 72, 153, 0.2)",
+    "--glow": "rgba(236, 72, 153, 0.35)"
+  },
+  darkred: {
+    "--bg": "#100305",
+    "--accent": "#ef4444",
+    "--blue": "#f43f5e",
+    "--text": "#fef2f2",
+    "--surface": "rgba(239, 68, 68, 0.06)",
+    "--border": "rgba(239, 68, 68, 0.2)",
+    "--glow": "rgba(239, 68, 68, 0.35)"
+  },
+  dnv2: {
+    "--bg": "#050009",
+    "--accent": "#ff00de",
+    "--blue": "#00fff7",
+    "--text": "#ffffff",
+    "--surface": "rgba(255, 0, 222, 0.06)",
+    "--border": "rgba(255, 0, 222, 0.2)",
+    "--glow": "rgba(255, 0, 222, 0.35)"
+  },
+  matrix: {
+    "--bg": "#000d00",
+    "--accent": "#00ff00",
+    "--blue": "#33ff33",
+    "--text": "#d0ffd0",
+    "--surface": "rgba(0, 255, 0, 0.06)",
+    "--border": "rgba(0, 255, 0, 0.2)",
+    "--glow": "rgba(0, 255, 0, 0.35)"
+  },
+  frost: {
+    "--bg": "#060e1a",
+    "--accent": "#38bdf8",
+    "--blue": "#818cf8",
+    "--text": "#f0f9ff",
+    "--surface": "rgba(56, 189, 248, 0.06)",
+    "--border": "rgba(56, 189, 248, 0.2)",
+    "--glow": "rgba(56, 189, 248, 0.35)"
+  },
+  deepblue: {
+    "--bg": "#050a1a",
+    "--accent": "#3b82f6",
+    "--blue": "#60a5fa",
+    "--text": "#eff6ff",
+    "--surface": "rgba(59, 130, 246, 0.06)",
+    "--border": "rgba(59, 130, 246, 0.2)",
+    "--glow": "rgba(59, 130, 246, 0.35)"
+  }
+};
+
+function applyTheme(theme) {
+  if (!theme) return;
+  Object.entries(theme).forEach(([k, v]) => root.style.setProperty(k, v));
+}
+
+function updateThemeUI(themeName) {
+  if (themeSelect) {
+    themeSelect.value = themeName in themes ? themeName : "default";
+  }
+  document.querySelectorAll('.theme-option-item').forEach(btn => {
+    const fnStr = btn.getAttribute('onclick') || '';
+    if (fnStr.includes(`'${themeName}'`)) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function handleThemeChange(themeName) {
+  const theme = themes[themeName] || themes.default;
+  applyTheme(theme);
+  localStorage.setItem("pulse-theme", themeName);
+  localStorage.setItem("dominum-theme", themeName);
+  updateThemeUI(themeName);
+}
+
+function pickTheme(themeName) {
+  handleThemeChange(themeName);
+  const popup = document.getElementById('themePopup');
+  if (popup) popup.classList.remove('show');
+}
+
+function toggleThemePopup(e) {
+  if (e) e.stopPropagation();
+  const popup = document.getElementById('themePopup');
+  if (popup) {
+    popup.classList.toggle('show');
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('themePopup');
+  const trigger = document.getElementById('themeMenuBtn');
+  if (popup && popup.classList.contains('show')) {
+    if (!popup.contains(e.target) && !trigger.contains(e.target)) {
+      popup.classList.remove('show');
+    }
+  }
+});
+
+(function() {
+  let savedName = localStorage.getItem("pulse-theme") || localStorage.getItem("dominum-theme") || "default";
+  if (savedName === "vice" || savedName === "leonida" || savedName === "christmas" || savedName === "jolly" || savedName === "halloween" || savedName === "spooky") {
+    savedName = "default";
+    localStorage.setItem("pulse-theme", "default");
+    localStorage.setItem("dominum-theme", "default");
+  }
+  if (savedName === "custom") {
+    const custom = JSON.parse(localStorage.getItem("pulse-custom-theme") || localStorage.getItem("dominum-custom-theme") || "{}");
+    applyTheme(custom);
+    updateThemeUI("default");
+  } else {
+    applyTheme(themes[savedName] || themes.default);
+    updateThemeUI(savedName);
+  }
+})();
+</script>
+</body>
+</html>

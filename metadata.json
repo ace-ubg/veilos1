@@ -1,0 +1,8 @@
+{
+  "name": "SpadeOS",
+  "description": "SpadeOS — Modern web desktop environment with multi-window management, Onyx Browser, tab & stealth cloaking, search engine selection, games, movies, and media apps.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

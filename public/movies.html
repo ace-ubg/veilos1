@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">SSV - Search and Browse</title>
+    <link rel="shortcut icon" href="https://i.ibb.co/s9nBfXxn/aarushi.png" type="image/x-icon" id="appFavicon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/safe-postmessage.js"></script>
+    <script src="/scramjet/scramjet.js"></script>
+		<script src="/controller/controller.api.js"></script>
+		<script src="/host/host.js"></script>
+		<script src="/scram-host.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Lexend', sans-serif;
+        }
+
+        html[data-theme="default"] {
+            --bg: #09090b;
+            --bg-2: #111116;
+            --bg-3: #181820;
+            --bg-4: #22222c;
+            --border: rgba(255, 255, 255, 0.14);
+            --border-2: rgba(255, 255, 255, 0.08);
+            --text: #f8fafc;
+            --text-2: #94a3b8;
+            --bright-text: #ffffff;
+            --accent: #6366f1;
+            --accent-2: #4f46e5;
+            --accent-glow: rgba(99, 102, 241, 0.25);
+        }
+
+        html[data-theme="blood"] {
+            --bg: #000000;
+            --bg-2: #0a0a0a;
+            --bg-3: #121212;
+            --bg-4: #1a1a1a;
+            --border: rgba(255, 255, 255, 0.2);
+            --border-2: rgba(255, 255, 255, 0.12);
+            --text: #e0e0e0;
+            --text-2: #a0a0a0;
+            --bright-text: #ffffff;
+            --accent: #ff0000;
+            --accent-2: #bb1616;
+            --accent-glow: rgba(255, 77, 77, 0.15);
+        }
+
+        html[data-theme="blossom"] {
+            --bg: #0d080b;
+            --bg-2: #130c10;
+            --bg-3: #1a1017;
+            --bg-4: #22151d;
+            --border: rgba(255, 182, 210, 0.22);
+            --border-2: rgba(255, 182, 210, 0.14);
+            --text: #e8d5df;
+            --text-2: #a8899a;
+            --bright-text: #f9eef4;
+            --accent: #e87fa8;
+            --accent-2: #cf6590;
+            --accent-glow: rgba(232, 127, 168, 0.15);
+        }
+
+        html[data-theme="crimson"] {
+            --bg: #1a0a0a;
+            --bg-2: #260f0f;
+            --bg-3: #331616;
+            --bg-4: #421f1f;
+            --border: rgba(255, 100, 100, 0.2);
+            --border-2: rgba(255, 100, 100, 0.12);
+            --text: #f5d4d4;
+            --text-2: #d08b8b;
+            --bright-text: #ffffff;
+            --accent: #ef4444;
+            --accent-2: #dc2626;
+            --accent-glow: rgba(239, 68, 68, 0.15);
+        }
+
+        html[data-theme="forest"] {
+            --bg: #0f1a0f;
+            --bg-2: #152015;
+            --bg-3: #1c291c;
+            --bg-4: #243324;
+            --border: rgba(120, 200, 120, 0.2);
+            --border-2: rgba(120, 200, 120, 0.12);
+            --text: #d8e8d8;
+            --text-2: #9cbf9c;
+            --bright-text: #ffffff;
+            --accent: #4eff7a;
+            --accent-2: #3de668;
+            --accent-glow: rgba(78, 255, 122, 0.15);
+        }
+
+        html[data-theme="lavendar"] {
+            --bg: #120a1a;
+            --bg-2: #1a0f26;
+            --bg-3: #221633;
+            --bg-4: #2d1f42;
+            --border: rgba(180, 120, 255, 0.2);
+            --border-2: rgba(180, 120, 255, 0.12);
+            --text: #e8dff5;
+            --text-2: #b4a0d0;
+            --bright-text: #ffffff;
+            --accent: #a855f7;
+            --accent-2: #9333ea;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+        }
+
+        html[data-theme="light"] {
+            --bg: #ffffff;
+            --bg-2: #f8f8f8;
+            --bg-3: #f0f0f0;
+            --bg-4: #e8e8e8;
+            --border: rgba(0, 0, 0, 0.12);
+            --border-2: rgba(0, 0, 0, 0.08);
+            --text: #1a1a1a;
+            --text-2: #666666;
+            --bright-text: #000000;
+            --accent: #ff4da6;
+            --accent-2: #e6398d;
+            --accent-glow: rgba(255, 77, 166, 0.1);
+        }
+
+        html[data-theme="midnight"] {
+            --bg: #0a0a14;
+            --bg-2: #0f0f1f;
+            --bg-3: #16162b;
+            --bg-4: #1f1f3a;
+            --border: rgba(130, 150, 255, 0.2);
+            --border-2: rgba(130, 150, 255, 0.12);
+            --text: #dfe5f5;
+            --text-2: #a0b0d0;
+            --bright-text: #ffffff;
+            --accent: #6b7eff;
+            --accent-2: #5563e6;
+            --accent-glow: rgba(107, 126, 255, 0.15);
+        }
+
+        html[data-theme="monochrome"] {
+            --bg: #000000;
+            --bg-2: #0a0a0a;
+            --bg-3: #121212;
+            --bg-4: #1a1a1a;
+            --border: rgba(255, 255, 255, 0.2);
+            --border-2: rgba(255, 255, 255, 0.12);
+            --text: #e0e0e0;
+            --text-2: #a0a0a0;
+            --bright-text: #ffffff;
+            --accent: #afafaf;
+            --accent-2: #8d8d8d;
+            --accent-glow: rgba(255, 255, 255, 0.15);
+        }
+
+        html[data-theme="ocean"] {
+            --bg: #0a1628;
+            --bg-2: #0d1d35;
+            --bg-3: #122542;
+            --bg-4: #1a3354;
+            --border: rgba(100, 200, 255, 0.2);
+            --border-2: rgba(100, 200, 255, 0.12);
+            --text: #d4e7f5;
+            --text-2: #8bb4d0;
+            --bright-text: #ffffff;
+            --accent: #00d4ff;
+            --accent-2: #00b8e6;
+            --accent-glow: rgba(0, 212, 255, 0.15);
+        }
+
+        html[data-theme="sunset"] {
+            --bg: #1a0f0a;
+            --bg-2: #241512;
+            --bg-3: #2e1d1a;
+            --bg-4: #3d2622;
+            --border: rgba(255, 150, 80, 0.2);
+            --border-2: rgba(255, 150, 80, 0.12);
+            --text: #f5e0d4;
+            --text-2: #d0a890;
+            --bright-text: #ffffff;
+            --accent: #ff7b3d;
+            --accent-2: #e6632a;
+            --accent-glow: rgba(255, 123, 61, 0.15);
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        h1, h2, h3, h4, p {
+            margin: 0;
+        }
+
+        button, input, select {
+            font: inherit;
+        }
+
+        .app-topbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            background: rgba(0, 0, 0, 0.35);
+            border-bottom: 1px solid var(--border-2);
+            backdrop-filter: blur(12px);
+            z-index: 20;
+        }
+
+        .app-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--bright-text);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .app-logo span.accent {
+            color: var(--accent);
+            text-shadow: 0 0 15px var(--accent);
+        }
+
+        .proxy-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .proxy-status-pill .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+
+        .topbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button.secondary,
+        button.outline {
+            padding: 7px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button.secondary {
+            color: var(--text);
+            background: var(--bg-3);
+            border: 1px solid transparent;
+        }
+
+        button.secondary:hover {
+            background: var(--bg-4);
+            border-color: var(--border-2);
+            transform: translateY(-1px);
+        }
+
+        button.outline {
+            color: var(--text);
+            background: none;
+            border: 1px solid var(--border-2);
+        }
+
+        button.outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border);
+            transform: translateY(-1px);
+        }
+
+        button.secondary:active,
+        button.outline:active {
+            transform: translateY(0) scale(0.97);
+        }
+
+        .dac {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .home-shell {
+            transition: opacity 0.2s, transform 0.2s;
+            text-align: center;
+            width: min(600px, 92vw);
+        }
+
+        .home-shell.popup-open {
+            opacity: 0.25;
+            transform: translate(-50%, -50%) scale(0.98);
+            pointer-events: none;
+        }
+
+        .hometitle {
+            font-size: 72px;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            color: transparent;
+            background: linear-gradient(135deg, var(--bright-text) 0%, var(--accent) 50%, var(--text) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            text-shadow: 0 0 45px var(--accent-glow);
+            margin-bottom: 4px;
+        }
+
+        #splash {
+            font-size: 13px;
+            letter-spacing: 1.5px;
+            color: var(--text-2);
+            text-transform: uppercase;
+            font-weight: 500;
+            min-height: 20px;
+        }
+
+        .home-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .home-btn {
+            padding: 10px 22px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-3);
+            border: 1px solid var(--border-2);
+            color: var(--text);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .home-btn:hover {
+            border-color: var(--accent);
+            color: var(--bright-text);
+            background: var(--bg-4);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        .home-btn.primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 18px var(--accent-glow);
+        }
+
+        .home-btn.primary:hover {
+            box-shadow: 0 6px 25px var(--accent-glow);
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        .popup-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(14px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 30;
+        }
+
+        .popup-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .popup-window {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: min(1060px, calc(100vw - 32px));
+            height: min(720px, calc(100vh - 48px));
+            transform: translate(-50%, -50%) scale(0.96);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            background: var(--bg-2);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px var(--accent-glow);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+            z-index: 35;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .popup-window.open {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        .popup-window.fullscreen-mode {
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            border-radius: 0;
+            border: 0;
+            transform: none !important;
+        }
+
+        .popup-chrome {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border-2);
+            background: var(--bg-2);
+            flex-shrink: 0;
+        }
+
+        .popup-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .popup-title h2 {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--bright-text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .popup-title p {
+            color: var(--text-2);
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            background: var(--bg-3);
+            border: 1px solid var(--border-2);
+        }
+
+        .popup-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .popup-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 18px;
+            position: relative;
+        }
+
+        .movie-toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 10px;
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-2);
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        .mini-input {
+            width: 100%;
+            padding: 12px 14px 12px 40px;
+            border-radius: 14px;
+            border: 1px solid var(--border-2);
+            background: var(--bg-3);
+            color: var(--bright-text);
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .mini-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .mini-input::placeholder {
+            color: var(--text-2);
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tab-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .movie-pill {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 12px;
+            border: 1px solid var(--border-2);
+            background: var(--bg-3);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .movie-pill:hover {
+            border-color: var(--border);
+            color: var(--bright-text);
+            transform: translateY(-1px);
+        }
+
+        .movie-pill.active {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            font-weight: 600;
+        }
+
+        .movie-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .movie-card {
+            border-radius: 16px;
+            border: 1px solid var(--border-2);
+            background: var(--bg-3);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .movie-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            border-color: var(--accent);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4), 0 0 20px var(--accent-glow);
+        }
+
+        .movie-card-thumb {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            background: var(--bg-4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .movie-card-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .movie-card:hover .movie-card-thumb img {
+            transform: scale(1.05);
+        }
+
+        .movie-rating-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 3px 7px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #facc15;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .movie-type-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            padding: 3px 7px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--bright-text);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .movie-card-info {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .movie-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--bright-text);
+            line-height: 1.35;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .movie-card-year {
+            font-size: 12px;
+            color: var(--text-2);
+        }
+
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 12px 0 24px;
+        }
+
+        .status-message {
+            font-size: 13px;
+            color: var(--text-2);
+            text-align: center;
+            padding: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .watch-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: section-enter 0.2s ease;
+        }
+
+        .watch-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .watch-title-group h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--bright-text);
+            line-height: 1.25;
+        }
+
+        .watch-title-group p {
+            color: var(--text-2);
+            font-size: 13px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .watch-player-box {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            min-height: 380px;
+            max-height: 600px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background: #000000;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .watch-player-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            outline: none;
+            display: block;
+            background: #000000;
+        }
+
+        .watch-player-loader {
+            position: absolute;
+            inset: 0;
+            background: #000000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--text-2);
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 2;
+        }
+
+        .watch-player-loader.hidden {
+            opacity: 0;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .watch-controls-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 16px;
+            background: var(--bg-3);
+            border: 1px solid var(--border-2);
+            flex-wrap: wrap;
+        }
+
+        .source-selector-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .source-selector-wrap label {
+            font-size: 13px;
+            color: var(--text-2);
+            font-weight: 500;
+        }
+
+        .custom-select {
+            padding: 8px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border-2);
+            background: var(--bg-4);
+            color: var(--bright-text);
+            outline: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .custom-select:focus {
+            border-color: var(--accent);
+        }
+
+        .tv-seasons-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .tv-episodes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .episode-pill {
+            padding: 9px 12px;
+            font-size: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-2);
+            background: var(--bg-3);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .episode-pill:hover {
+            border-color: var(--border);
+            color: var(--bright-text);
+        }
+
+        .episode-pill.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .watch-overview-box {
+            padding: 16px;
+            border-radius: 16px;
+            background: var(--bg-3);
+            border: 1px solid var(--border-2);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .watch-overview-box h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--bright-text);
+            text-transform: lowercase;
+        }
+
+        .watch-overview-box p {
+            color: var(--text-2);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .settings-view {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: section-enter 0.2s ease;
+        }
+
+        .settings-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+        }
+
+        .theme-chip {
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--border-2);
+            background: var(--bg-3);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-transform: capitalize;
+            font-weight: 500;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .theme-chip:hover {
+            border-color: var(--border);
+            color: var(--bright-text);
+            transform: translateY(-1px);
+        }
+
+        .theme-chip.active {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .theme-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: inline-block;
+        }
+
+        .cloak-input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .cloak-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        @keyframes section-enter {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 720px) {
+            .popup-window {
+                width: calc(100vw - 16px);
+                height: calc(100vh - 20px);
+                border-radius: 20px;
+            }
+
+            .movie-results {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 10px;
+            }
+
+            .watch-player-box {
+                min-height: 240px;
+            }
+
+            .hometitle {
+                font-size: 52px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-topbar">
+        <div class="app-logo" onclick="openHome()">
+            <span class="accent">🎬 SSV</span>
+            <span style="font-size: 13px; font-weight: 500; color: var(--text-2);">Movies & TV</span>
+        </div>
+
+        <div class="proxy-status-pill" title="Every video stream and external link is routed via Scramjet Engine">
+            <span class="dot"></span>
+            <span>Stream Engine • Scramjet</span>
+        </div>
+
+        <div class="topbar-nav">
+            <button class="secondary" onclick="launch('movies')" title="Search and Browse Movies">
+                <i data-lucide="film"></i>
+                <span class="hide-mobile">Browse</span>
+            </button>
+            <button class="secondary" onclick="launch('settings')" title="Theme & Settings">
+                <i data-lucide="palette"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="dac home-shell" id="homeShell">
+        <h1 class="hometitle">SSV</h1>
+        <p id="splash">loading...</p>
+        <div class="home-buttons">
+            <button class="home-btn primary" onclick="launch('movies')">
+                <i data-lucide="play"></i>
+                <span>movies & shows</span>
+            </button>
+            <button class="home-btn" onclick="launch('settings')">
+                <i data-lucide="settings"></i>
+                <span>settings</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="popup-backdrop" id="popupBackdrop" onclick="closePopup()"></div>
+    <div class="popup-window" id="popupWindow" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="popup-chrome">
+            <div class="popup-title">
+                <h2 id="popupTitle">
+                    <i data-lucide="film" style="color: var(--accent);"></i>
+                    <span>movies</span>
+                </h2>
+                <p id="popupSubtitle">media player</p>
+            </div>
+            <div class="popup-actions">
+                <button class="outline" id="popupBackBtn" style="display: none;" onclick="returnToCatalog()" title="Back to catalog">
+                    <i data-lucide="arrow-left"></i>
+                    <span>back</span>
+                </button>
+                <button class="outline" id="popupFullscreenBtn" onclick="toggleWindowFullscreen()" title="Toggle full window">
+                    <i data-lucide="maximize"></i>
+                </button>
+                <button class="outline" onclick="closePopup()" title="Close popup">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="popup-body" id="popupBody"></div>
+    </div>
+
+    <script>
+        const WISP_URL = "wss://fern.best/wisp/";
+        const splashes = [
+            "HIGH SPEED STREAMING VIA SCRAMJET & BAREMUX",
+            "HD STREAMING VIA SCRAMJET ENGINE",
+            "CINEMA ON SPADEOS",
+            "ZERO ADS • HIGH SPEED STREAMING MIRRORS",
+            "BINGE YOUR FAVORITE MOVIES & EPISODES"
+        ];
+
+        const $ = (s) => document.querySelector(s);
+
+        const availableThemes = [
+            "default", "blood", "blossom", "crimson", "forest",
+            "lavendar", "light", "midnight", "monochrome", "ocean", "sunset"
+        ];
+
+        const TMDB_API_KEYS = [
+            "fb7bb23f03b6994dafc674c074d01761",
+            "1070730380f5fee0d87cf0382670b255"
+        ];
+        let currentApiKeyIndex = 0;
+        function getTmdbApiKey() {
+            return TMDB_API_KEYS[currentApiKeyIndex] || TMDB_API_KEYS[0];
+        }
+
+        const watchSources = [
+            {
+                id: "videasy",
+                name: "VidEasy (Fast & Ad-Free)",
+                urls: {
+                    movie: "https://player.videasy.to/movie/{id}?color=8834ec",
+                    tv: "https://player.videasy.to/tv/{id}/{season}/{episode}?color=8834ec"
+                }
+            },
+            {
+                id: "vidcore",
+                name: "VidCore Embed",
+                urls: {
+                    movie: "https://vidcore.org/embed/movie/{id}",
+                    tv: "https://vidcore.org/embed/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "vidfastvc",
+                name: "VidFast (VC Server)",
+                urls: {
+                    movie: "https://vidfast.vc/movie/{id}",
+                    tv: "https://vidfast.vc/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "vidfastpro",
+                name: "VidFast Pro",
+                urls: {
+                    movie: "https://vidfast.pro/movie/{id}",
+                    tv: "https://vidfast.pro/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "vidfastnet",
+                name: "VidFast Net",
+                urls: {
+                    movie: "https://vidfast.net/movie/{id}",
+                    tv: "https://vidfast.net/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "vidsrcto",
+                name: "VidSrc.to (Official)",
+                urls: {
+                    movie: "https://vidsrc.to/embed/movie/{id}",
+                    tv: "https://vidsrc.to/embed/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "vidsrccc",
+                name: "VidSrc.cc (Multi)",
+                urls: {
+                    movie: "https://vidsrc.cc/embed/movie/{id}",
+                    tv: "https://vidsrc.cc/embed/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "vidsrcxyz",
+                name: "VidSrc.xyz",
+                urls: {
+                    movie: "https://vidsrc.xyz/embed/movie/{id}",
+                    tv: "https://vidsrc.xyz/embed/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "multiembed",
+                name: "MultiEmbed Stream",
+                urls: {
+                    movie: "https://multiembed.mov/?video_id={id}&tmdb=1",
+                    tv: "https://multiembed.mov/?video_id={id}&tmdb=1&s={season}&e={episode}"
+                }
+            },
+            {
+                id: "smashystream",
+                name: "SmashyStream",
+                urls: {
+                    movie: "https://smashystream.xyz/embed/movie/{id}",
+                    tv: "https://smashystream.xyz/embed/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "2embed",
+                name: "2Embed Multi",
+                urls: {
+                    movie: "https://www.2embed.cc/embed/{id}",
+                    tv: "https://www.2embed.cc/embedtv/{id}&s={season}&e={episode}"
+                }
+            },
+            {
+                id: "mappl",
+                name: "Mappl TV",
+                urls: {
+                    movie: "https://www.mappl.tv/embed/{id}",
+                    tv: "https://www.mappl.tv/embed/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "rivestream",
+                name: "RiveStream",
+                urls: {
+                    movie: "https://rivestream.ru/embed?id={id}",
+                    tv: "https://rivestream.ru/embed?id={id}&season={season}&episode={episode}"
+                }
+            },
+            {
+                id: "vidking",
+                name: "Vidking (Multi-Quality)",
+                urls: {
+                    movie: "https://www.vidking.net/embed/movie/{id}?color=e50914&autoPlay=true",
+                    tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true"
+                }
+            },
+            {
+                id: "embedmaster",
+                name: "EmbedMaster (HD)",
+                urls: {
+                    movie: "https://embedmaster.link/movie/{id}",
+                    tv: "https://embedmaster.link/tv/{id}/{season}/{episode}"
+                }
+            },
+            {
+                id: "vidlink",
+                name: "VidLink (Multi-server)",
+                urls: {
+                    movie: "https://vidlink.pro/movie/{id}?primaryColor=8834ec",
+                    tv: "https://vidlink.pro/tv/{id}/{season}/{episode}?primaryColor=8834ec"
+                }
+            },
+            {
+                id: "autoembed",
+                name: "AutoEmbed CC",
+                urls: {
+                    movie: "https://player.autoembed.cc/embed/movie/{id}",
+                    tv: "https://player.autoembed.cc/embed/tv/{id}/{season}/{episode}"
+                }
+            }
+        ];
+
+        const popupState = {
+            activeSection: null,
+            currentTab: "movies",
+            currentPage: 1,
+            searchQuery: "",
+            activeContentId: null,
+            activeContentType: "movie",
+            selectedSource: "videasy",
+            proxyMode: "scramjet",
+            selectedSeason: 1,
+            selectedEpisode: 1,
+            contentDetails: null,
+            seasonData: null
+        };
+
+        let localScramjet = null;
+        async function initLocalScramjet() {
+            try {
+                if (window.ScramjetHost) {
+                    localScramjet = await window.ScramjetHost.boot({
+                        transport: "/epoxy/index.mjs",
+                        wisp: WISP_URL
+                    });
+                }
+            } catch (err) {
+                console.warn("Proxy initialization note:", err);
+            }
+        }
+        initLocalScramjet();
+
+        function getProxiedUrl(targetUrl, forcedMode) {
+            if (!targetUrl) return "";
+            const mode = forcedMode || popupState.proxyMode || "scramjet";
+
+            if (mode === "direct") {
+                return targetUrl;
+            }
+
+            try {
+                if (window.parent && typeof window.parent.encodeProxyUrl === "function") {
+                    return window.parent.encodeProxyUrl(targetUrl);
+                }
+                if (window.top && typeof window.top.encodeProxyUrl === "function") {
+                    return window.top.encodeProxyUrl(targetUrl);
+                }
+                if (localScramjet && typeof localScramjet.encodeUrl === "function") {
+                    return localScramjet.encodeUrl(targetUrl);
+                }
+            } catch (e) {
+                console.warn("Parent proxy access note:", e);
+            }
+
+            return targetUrl;
+        }
+
+        $("#splash").textContent = splashes[Math.floor(Math.random() * splashes.length)];
+
+        function setPopupOpen(isOpen) {
+            $("#popupBackdrop").classList.toggle("open", isOpen);
+            $("#popupWindow").classList.toggle("open", isOpen);
+            $("#popupWindow").setAttribute("aria-hidden", isOpen ? "false" : "true");
+            $("#homeShell").classList.toggle("popup-open", isOpen);
+        }
+
+        function closePopup() {
+            setPopupOpen(false);
+            $("#popupBody").innerHTML = "";
+            popupState.activeSection = null;
+            $("#popupBackBtn").style.display = "none";
+        }
+
+        function openHome() {
+            closePopup();
+        }
+
+        function toggleWindowFullscreen() {
+            $("#popupWindow").classList.toggle("fullscreen-mode");
+            const isFull = $("#popupWindow").classList.contains("fullscreen-mode");
+            $("#popupFullscreenBtn").innerHTML = isFull
+                ? '<i data-lucide="minimize"></i>'
+                : '<i data-lucide="maximize"></i>';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.dataset.theme = theme;
+            localStorage.setItem("SSV-theme", theme);
+            localStorage.setItem("KAMAT-theme", theme);
+
+            document.querySelectorAll(".theme-chip").forEach((chip) => {
+                chip.classList.toggle("active", chip.dataset.theme === theme);
+            });
+        }
+
+        function applyTabSettings(title, favicon) {
+            const nextTitle = (title || "").trim() || "SSV - Search and Browse";
+            const nextFavicon = (favicon || "").trim() || "https://i.ibb.co/s9nBfXxn/aarushi.png";
+
+            document.title = nextTitle;
+            const fav = $("#appFavicon");
+            if (fav) fav.href = nextFavicon;
+        }
+
+        function saveTabSettings(title, favicon) {
+            const cleanTitle = (title || "").trim();
+            const cleanFavicon = (favicon || "").trim();
+
+            if (cleanTitle) {
+                localStorage.setItem("SSV-tab-title", cleanTitle);
+            } else {
+                localStorage.removeItem("SSV-tab-title");
+            }
+
+            if (cleanFavicon) {
+                localStorage.setItem("SSV-tab-favicon", cleanFavicon);
+            } else {
+                localStorage.removeItem("SSV-tab-favicon");
+            }
+
+            applyTabSettings(cleanTitle, cleanFavicon);
+        }
+
+        function renderMoviesView() {
+            popupState.activeSection = "movies";
+            $("#popupTitle").innerHTML = '<i data-lucide="film" style="color: var(--accent);"></i> <span>movies & shows</span>';
+            $("#popupSubtitle").textContent = "search and browse";
+            $("#popupBackBtn").style.display = "none";
+
+            const body = $("#popupBody");
+            body.innerHTML = `
+                <div class="movie-toolbar">
+                    <div class="search-row">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input class="mini-input" id="movieSearch" placeholder="what are we watching today?" value="${popupState.searchQuery || ""}">
+                    </div>
+                    <div class="filter-row">
+                        <div class="tab-pills">
+                            <button class="movie-pill ${popupState.currentTab === "movies" ? "active" : ""}" id="tabMoviesBtn">
+                                <i data-lucide="clapperboard"></i>
+                                <span>movies</span>
+                            </button>
+                            <button class="movie-pill ${popupState.currentTab === "shows" ? "active" : ""}" id="tabShowsBtn">
+                                <i data-lucide="tv"></i>
+                                <span>tv shows</span>
+                            </button>
+                            <button class="movie-pill ${popupState.currentTab === "anime" ? "active" : ""}" id="tabAnimeBtn">
+                                <i data-lucide="zap"></i>
+                                <span>anime</span>
+                            </button>
+                        </div>
+                        <div class="status-message" id="movieStatus" style="padding:0;">loading...</div>
+                    </div>
+                </div>
+
+                <div class="movie-results" id="movieResults"></div>
+
+                <div class="pagination-bar">
+                    <button class="movie-pill" id="prevPageBtn">
+                        <i data-lucide="chevron-left"></i>
+                        <span>previous</span>
+                    </button>
+                    <div class="movie-pill active" id="pageLabel" style="cursor: default;">page ${popupState.currentPage}</div>
+                    <button class="movie-pill" id="nextPageBtn">
+                        <span>next</span>
+                        <i data-lucide="chevron-right"></i>
+                    </button>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+
+            const searchInput = $("#movieSearch");
+            const tabMovies = $("#tabMoviesBtn");
+            const tabShows = $("#tabShowsBtn");
+            const tabAnime = $("#tabAnimeBtn");
+            const prevBtn = $("#prevPageBtn");
+            const nextBtn = $("#nextPageBtn");
+
+            let debounceTimer = null;
+            searchInput.addEventListener("input", () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    popupState.searchQuery = searchInput.value;
+                    popupState.currentPage = 1;
+                    fetchAndRenderCatalog();
+                }, 300);
+            });
+
+            tabMovies.addEventListener("click", () => {
+                if (popupState.currentTab === "movies") return;
+                popupState.currentTab = "movies";
+                popupState.currentPage = 1;
+                tabMovies.classList.add("active");
+                tabShows.classList.remove("active");
+                if (tabAnime) tabAnime.classList.remove("active");
+                fetchAndRenderCatalog();
+            });
+
+            tabShows.addEventListener("click", () => {
+                if (popupState.currentTab === "shows") return;
+                popupState.currentTab = "shows";
+                popupState.currentPage = 1;
+                tabShows.classList.add("active");
+                tabMovies.classList.remove("active");
+                if (tabAnime) tabAnime.classList.remove("active");
+                fetchAndRenderCatalog();
+            });
+
+            if (tabAnime) {
+                tabAnime.addEventListener("click", () => {
+                    if (popupState.currentTab === "anime") return;
+                    popupState.currentTab = "anime";
+                    popupState.currentPage = 1;
+                    tabAnime.classList.add("active");
+                    tabMovies.classList.remove("active");
+                    tabShows.classList.remove("active");
+                    fetchAndRenderCatalog();
+                });
+            }
+
+            prevBtn.addEventListener("click", () => {
+                if (popupState.currentPage <= 1) return;
+                popupState.currentPage -= 1;
+                fetchAndRenderCatalog();
+                body.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            nextBtn.addEventListener("click", () => {
+                popupState.currentPage += 1;
+                fetchAndRenderCatalog();
+                body.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            fetchAndRenderCatalog();
+        }
+
+        async function fetchAndRenderCatalog() {
+            const resultsContainer = $("#movieResults");
+            const statusEl = $("#movieStatus");
+            const pageLabel = $("#pageLabel");
+
+            if (!resultsContainer || !statusEl) return;
+
+            pageLabel.textContent = `page ${popupState.currentPage}`;
+            statusEl.innerHTML = `<i data-lucide="loader-2" class="spin-anim" style="animation: spin 1s linear infinite; display: inline-block; width: 14px; height: 14px; vertical-align: middle;"></i> <span>fetching content...</span>`;
+            if (window.lucide) lucide.createIcons();
+
+            const tab = popupState.currentTab;
+            const isMovie = tab === "movies";
+            const isAnime = tab === "anime";
+
+            let endpoint = "";
+            let extraParams = "";
+
+            if (popupState.searchQuery.trim()) {
+                const query = encodeURIComponent(popupState.searchQuery.trim());
+                if (isMovie) {
+                    endpoint = "search/movie";
+                    extraParams = `&query=${query}`;
+                } else {
+                    endpoint = "search/tv";
+                    extraParams = `&query=${query}`;
+                }
+            } else {
+                if (isMovie) {
+                    endpoint = "movie/popular";
+                } else if (isAnime) {
+                    endpoint = "discover/tv";
+                    extraParams = "&with_genres=16&with_original_language=ja&sort_by=popularity.desc";
+                } else {
+                    endpoint = "tv/popular";
+                }
+            }
+
+            const url = `https://api.themoviedb.org/3/${endpoint}?api_key=${getTmdbApiKey()}&page=${popupState.currentPage}${extraParams}`;
+
+            try {
+                let res = await fetch(url, { headers: { Accept: "application/json" } });
+                if (!res.ok) {
+                    currentApiKeyIndex = (currentApiKeyIndex + 1) % TMDB_API_KEYS.length;
+                    const fallbackUrl = `https://api.themoviedb.org/3/${endpoint}?api_key=${getTmdbApiKey()}&page=${popupState.currentPage}${qParam}`;
+                    res = await fetch(fallbackUrl);
+                }
+
+                const data = await res.json();
+                const items = data.results || [];
+
+                resultsContainer.innerHTML = "";
+                if (!items.length) {
+                    statusEl.textContent = "no results found";
+                    return;
+                }
+
+                statusEl.textContent = `${items.length} items found`;
+
+                items.forEach((item) => {
+                    const title = item.title || item.name || "Untitled";
+                    const poster = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "";
+                    const yearVal = item.release_date || item.first_air_date;
+                    const year = yearVal ? String(new Date(yearVal).getFullYear()) : "";
+                    const rating = item.vote_average ? item.vote_average.toFixed(1) : null;
+                    const itemType = isMovie ? "movie" : "tv";
+
+                    const card = document.createElement("div");
+                    card.className = "movie-card";
+                    card.innerHTML = `
+                        <div class="movie-card-thumb">
+                            ${poster ? `<img src="${poster}" alt="${title.replace(/"/g, '&quot;')}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=60'">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);"><i data-lucide="film" style="width: 2rem; height: 2rem;"></i></div>`}
+                            <div class="movie-type-badge">${itemType}</div>
+                            ${rating ? `<div class="movie-rating-badge"><i data-lucide="star" style="width: 12px; height: 12px; display: inline-block;"></i> <span>${rating}</span></div>` : ""}
+                        </div>
+                        <div class="movie-card-info">
+                            <div class="movie-card-title">${title}</div>
+                            <div class="movie-card-year">${year || "Release date N/A"}</div>
+                        </div>
+                    `;
+
+                    card.addEventListener("click", () => {
+                        launchWatch(item.id, itemType, title, year);
+                    });
+
+                    resultsContainer.appendChild(card);
+                });
+
+                if (window.lucide) lucide.createIcons();
+
+            } catch (err) {
+                console.error("Catalog fetch error:", err);
+                statusEl.innerHTML = `<span style="color:#ef4444; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="triangle-alert" style="width: 14px; height: 14px;"></i> network error. Click retry.</span>`;
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        async function launchWatch(contentId, contentType, fallbackTitle, fallbackYear) {
+            popupState.activeSection = "watch";
+            popupState.activeContentId = contentId;
+            popupState.activeContentType = contentType;
+            popupState.selectedSeason = 1;
+            popupState.selectedEpisode = 1;
+
+            $("#popupTitle").innerHTML = `<i data-lucide="play" style="color: var(--accent);"></i> <span>${fallbackTitle || "watch stream"}</span>`;
+            $("#popupSubtitle").textContent = `${contentType.toUpperCase()} • PROXIED`;
+            $("#popupBackBtn").style.display = "inline-flex";
+
+            const body = $("#popupBody");
+            body.innerHTML = `
+                <div class="watch-container">
+                    <div class="watch-header">
+                        <div class="watch-title-group">
+                            <h2 id="watchTitle">${fallbackTitle || "Loading Stream..."}</h2>
+                            <p id="watchMeta">
+                                <span>${fallbackYear || ""}</span>
+                                <span class="proxy-status-pill" style="font-size: 10px; padding: 2px 7px;">
+                                    <i data-lucide="shield-check"></i>
+                                    <span>Scramjet Proxied Link</span>
+                                </span>
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="outline" onclick="triggerPlayerFullscreen()" title="Fullscreen Video Player">
+                                <i data-lucide="maximize"></i>
+                                <span>player fullscreen</span>
+                            </button>
+                            <button class="outline" onclick="reloadStream()" title="Reload Proxied Stream">
+                                <i data-lucide="rotate-cw"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="watch-player-box" id="playerContainer">
+                        <div class="watch-player-loader" id="playerLoader">
+                            <div class="spinner"></div>
+                            <div>Connecting to proxied mirror...</div>
+                        </div>
+                        <iframe id="watchFrame" class="watch-player-frame" allow="fullscreen; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+
+                    <div class="watch-controls-bar" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                            <div class="source-selector-wrap">
+                                <label for="sourceSelect"><i data-lucide="server"></i> Mirror:</label>
+                                <select class="custom-select" id="sourceSelect"></select>
+                            </div>
+                            <div class="source-selector-wrap">
+                                <label for="proxyModeSelect"><i data-lucide="shield-check"></i> Mode:</label>
+                                <select class="custom-select" id="proxyModeSelect">
+                                    <option value="scramjet">Scramjet Stream</option>
+                                    <option value="direct">Direct Embed</option>
+                                </select>
+                            </div>
+                            <button class="outline" onclick="cycleMirror()" title="Switch to Next Mirror" style="padding: 6px 10px; font-size: 11px; border-radius: 8px;">
+                                <i data-lucide="shuffle"></i> <span>Next Mirror</span>
+                            </button>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 8px;">
+                            <div id="proxyLiveIndicator" class="proxy-status-pill" style="font-size: 11px; padding: 4px 10px;">
+                                <span class="dot" style="background: #22c55e;"></span>
+                                <span id="proxyLiveLabel">Active • Scramjet</span>
+                            </div>
+                            <button class="outline" onclick="openStreamInNewTab()" title="Open Video Stream in New Tab" style="padding: 6px 10px; font-size: 11px; border-radius: 8px;">
+                                <i data-lucide="external-link"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="tvControlsBox" style="display: none; flex-direction: column; gap: 10px;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--bright-text);">Seasons</div>
+                        <div class="tv-seasons-bar" id="seasonRow"></div>
+                        <div style="font-size: 13px; font-weight: 600; color: var(--bright-text);">Episodes</div>
+                        <div class="tv-episodes-grid" id="episodeGrid"></div>
+                    </div>
+
+                    <div class="watch-overview-box">
+                        <h3>Overview</h3>
+                        <p id="watchOverview">Loading synopsis...</p>
+                    </div>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+
+            const sourceSelect = $("#sourceSelect");
+            watchSources.forEach((src) => {
+                const opt = document.createElement("option");
+                opt.value = src.id;
+                opt.textContent = src.name;
+                if (src.id === popupState.selectedSource) opt.selected = true;
+                sourceSelect.appendChild(opt);
+            });
+
+            sourceSelect.addEventListener("change", () => {
+                popupState.selectedSource = sourceSelect.value;
+                updateVideoEmbed();
+            });
+
+            const proxyModeSelect = $("#proxyModeSelect");
+            if (proxyModeSelect) {
+                proxyModeSelect.value = popupState.proxyMode;
+                proxyModeSelect.addEventListener("change", () => {
+                    popupState.proxyMode = proxyModeSelect.value;
+                    updateVideoEmbed();
+                });
+            }
+
+            try {
+                const detUrl = `https://api.themoviedb.org/3/${contentType}/${contentId}?api_key=${getTmdbApiKey()}`;
+                const detRes = await fetch(detUrl);
+                const content = await detRes.json();
+                popupState.contentDetails = content;
+
+                const fullTitle = content.title || content.name || fallbackTitle || "Watch";
+                $("#watchTitle").textContent = fullTitle;
+                $("#popupTitle").innerHTML = `<i data-lucide="play" style="color: var(--accent);"></i> <span>${fullTitle}</span>`;
+                $("#watchOverview").textContent = content.overview || "No overview available for this title.";
+
+                const yearVal = content.release_date || content.first_air_date || fallbackYear;
+                const year = yearVal ? String(new Date(yearVal).getFullYear()) : "";
+                const genres = (content.genres || []).map(g => g.name).join(", ");
+                $("#watchMeta").innerHTML = `
+                    <span>${year}</span>
+                    ${genres ? `<span>•</span> <span>${genres}</span>` : ""}
+                    ${content.runtime ? `<span>•</span> <span>${content.runtime} min</span>` : ""}
+                    <span class="proxy-status-pill" style="font-size: 10px; padding: 2px 7px;">
+                        <i data-lucide="shield-check"></i>
+                        <span>Scramjet Proxied</span>
+                    </span>
+                `;
+                if (window.lucide) lucide.createIcons();
+
+                if (contentType === "tv") {
+                    setupTvControls(content);
+                } else {
+                    updateVideoEmbed();
+                }
+
+            } catch (err) {
+                console.error("Watch details error:", err);
+                updateVideoEmbed();
+            }
+        }
+
+        function setupTvControls(content) {
+            const tvBox = $("#tvControlsBox");
+            const seasonRow = $("#seasonRow");
+            if (!tvBox || !seasonRow) return;
+
+            tvBox.style.display = "flex";
+            seasonRow.innerHTML = "";
+
+            const numSeasons = content.number_of_seasons || 1;
+            for (let i = 1; i <= numSeasons; i++) {
+                const btn = document.createElement("button");
+                btn.className = `movie-pill ${i === popupState.selectedSeason ? "active" : ""}`;
+                btn.textContent = `Season ${i}`;
+                btn.addEventListener("click", () => {
+                    popupState.selectedSeason = i;
+                    Array.from(seasonRow.children).forEach((c, idx) => {
+                        c.classList.toggle("active", idx === i - 1);
+                    });
+                    fetchTvSeasonData();
+                });
+                seasonRow.appendChild(btn);
+            }
+
+            fetchTvSeasonData();
+        }
+
+        async function fetchTvSeasonData() {
+            const epGrid = $("#episodeGrid");
+            if (!epGrid) return;
+
+            epGrid.innerHTML = `<div style="font-size:12px; color:var(--text-2);">Loading season ${popupState.selectedSeason} episodes...</div>`;
+
+            try {
+                const sUrl = `https://api.themoviedb.org/3/tv/${popupState.activeContentId}/season/${popupState.selectedSeason}?api_key=${getTmdbApiKey()}`;
+                const res = await fetch(sUrl);
+                const data = await res.json();
+                popupState.seasonData = data;
+
+                epGrid.innerHTML = "";
+                const episodes = data.episodes || [];
+                if (!episodes.length) {
+                    epGrid.innerHTML = `<div style="font-size:12px; color:var(--text-2);">No episodes found.</div>`;
+                    updateVideoEmbed();
+                    return;
+                }
+
+                popupState.selectedEpisode = 1;
+
+                episodes.forEach((ep) => {
+                    const btn = document.createElement("button");
+                    btn.className = `episode-pill ${ep.episode_number === popupState.selectedEpisode ? "active" : ""}`;
+                    btn.title = `Episode ${ep.episode_number}: ${ep.name || ""}`;
+                    btn.innerHTML = `<strong>E${ep.episode_number}</strong> <span>${ep.name || ""}</span>`;
+                    btn.addEventListener("click", () => {
+                        popupState.selectedEpisode = ep.episode_number;
+                        Array.from(epGrid.children).forEach(c => c.classList.remove("active"));
+                        btn.classList.add("active");
+                        updateVideoEmbed();
+                    });
+                    epGrid.appendChild(btn);
+                });
+
+                updateVideoEmbed();
+
+            } catch (err) {
+                console.error("TV season fetch error:", err);
+                updateVideoEmbed();
+            }
+        }
+
+        function updateVideoEmbed() {
+            const frame = $("#watchFrame");
+            const loader = $("#playerLoader");
+            if (!frame) return;
+
+            if (loader) loader.classList.remove("hidden");
+
+            const source = watchSources.find(s => s.id === popupState.selectedSource) || watchSources[0];
+            let rawUrl = source.urls[popupState.activeContentType];
+
+            if (popupState.activeContentType === "tv") {
+                rawUrl = rawUrl
+                    .replace("{id}", popupState.activeContentId)
+                    .replace("{season}", popupState.selectedSeason)
+                    .replace("{episode}", popupState.selectedEpisode);
+            } else {
+                rawUrl = rawUrl.replace("{id}", popupState.activeContentId);
+            }
+
+            const proxiedUrl = getProxiedUrl(rawUrl, popupState.proxyMode);
+            console.log(`[Proxy] Loading stream via ${popupState.proxyMode}:`, proxiedUrl);
+
+            const liveLabel = $("#proxyLiveLabel");
+            if (liveLabel) {
+                liveLabel.textContent = popupState.proxyMode === "direct"
+                    ? `Direct (${source.name.split(" ")[0]})`
+                    : `Active • Scramjet (${source.name.split(" ")[0]})`;
+            }
+
+            frame.src = proxiedUrl;
+
+            frame.onload = () => {
+                if (loader) loader.classList.add("hidden");
+            };
+
+            setTimeout(() => {
+                if (loader) loader.classList.add("hidden");
+            }, 4000);
+        }
+
+        function reloadStream() {
+            updateVideoEmbed();
+        }
+
+        function cycleMirror() {
+            const currentIndex = watchSources.findIndex(s => s.id === popupState.selectedSource);
+            const nextIndex = (currentIndex + 1) % watchSources.length;
+            popupState.selectedSource = watchSources[nextIndex].id;
+            const sourceSelect = $("#sourceSelect");
+            if (sourceSelect) sourceSelect.value = popupState.selectedSource;
+            updateVideoEmbed();
+        }
+
+        function openStreamInNewTab() {
+            const frame = $("#watchFrame");
+            if (frame && frame.src) {
+                window.open(frame.src, "_blank");
+            }
+        }
+
+        function triggerPlayerFullscreen() {
+            const container = $("#playerContainer");
+            if (!container) return;
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (container.msRequestFullscreen) {
+                container.msRequestFullscreen();
+            }
+        }
+
+        function returnToCatalog() {
+            renderMoviesView();
+        }
+
+        function renderSettingsView() {
+            popupState.activeSection = "settings";
+            $("#popupTitle").innerHTML = '<i data-lucide="shield-check" style="color: var(--accent);"></i> <span>settings</span>';
+            $("#popupSubtitle").textContent = "tab cloaking and streaming settings";
+            $("#popupBackBtn").style.display = "none";
+
+            const body = $("#popupBody");
+            body.innerHTML = `
+                <div class="settings-view">
+
+                    <div>
+                        <div class="settings-section-title">Tab Cloaking & Presets</div>
+                        <p style="font-size:12px; color:var(--text-2); margin: 4px 0 12px;">Disguise your browser tab as a school or study portal</p>
+                        
+                        <div class="cloak-presets" style="margin-bottom: 12px;">
+                            <button class="movie-pill" onclick="presetCloak('Google Docs', 'https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico')">
+                                <i data-lucide="file-text" style="color:#3b82f6;"></i> Google Docs
+                            </button>
+                            <button class="movie-pill" onclick="presetCloak('Google Classroom', 'https://ssl.gstatic.com/classroom/favicon.png')">
+                                <i data-lucide="graduation-cap" style="color:#22c55e;"></i> Classroom
+                            </button>
+                            <button class="movie-pill" onclick="presetCloak('Google Drive', 'https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png')">
+                                <i data-lucide="hard-drive" style="color:#f59e0b;"></i> Drive
+                            </button>
+                            <button class="movie-pill" onclick="presetCloak('Canvas LMS', 'https://du11hjcvx0uqb.cloudfront.net/br/dist/images/favicon-e10d6477a4.ico')">
+                                <i data-lucide="compass" style="color:#ef4444;"></i> Canvas
+                            </button>
+                        </div>
+
+                        <div class="cloak-input-row">
+                            <input class="mini-input" style="padding-left:14px;" id="tabTitleInput" placeholder="Custom Tab Title (e.g. Google Docs)">
+                            <input class="mini-input" style="padding-left:14px;" id="tabFaviconInput" placeholder="Custom Favicon URL">
+                            <div style="display:flex; gap:8px;">
+                                <button class="movie-pill active" onclick="saveCloakFromInputs()">Save Cloak</button>
+                                <button class="movie-pill" onclick="resetCloak()">Reset to Default</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="height:1px; background:var(--border-2);"></div>
+
+                    <div>
+                        <div class="settings-section-title">Stream Routing Engine</div>
+                        <p style="font-size:12px; color:var(--text-2); margin: 4px 0 12px;">Scramjet controller & transport status</p>
+                        <div class="watch-controls-bar">
+                            <div style="font-size:13px; color:var(--bright-text);">
+                                <strong>Active Engine:</strong> Scramjet 2.x controller + Epoxy/libcurl
+                            </div>
+                            <span class="proxy-status-pill"><span class="dot"></span> Online</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+
+            $("#tabTitleInput").value = localStorage.getItem("SSV-tab-title") || localStorage.getItem("KAMAT-tab-title") || "";
+            $("#tabFaviconInput").value = localStorage.getItem("SSV-tab-favicon") || localStorage.getItem("KAMAT-tab-favicon") || "";
+        }
+
+        function presetCloak(title, icon) {
+            $("#tabTitleInput").value = title;
+            $("#tabFaviconInput").value = icon;
+            saveTabSettings(title, icon);
+        }
+
+        function saveCloakFromInputs() {
+            const t = $("#tabTitleInput").value;
+            const f = $("#tabFaviconInput").value;
+            saveTabSettings(t, f);
+        }
+
+        function resetCloak() {
+            $("#tabTitleInput").value = "";
+            $("#tabFaviconInput").value = "";
+            saveTabSettings("", "");
+        }
+
+        function launch(key) {
+            setPopupOpen(true);
+            if (key === "movies") {
+                renderMoviesView();
+            } else if (key === "settings") {
+                renderSettingsView();
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Global ESC key to close
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                closePopup();
+            }
+        });
+
+        let savedTheme = localStorage.getItem("SSV-theme") || localStorage.getItem("KAMAT-theme");
+        if (savedTheme === "christmas" || savedTheme === "jolly" || savedTheme === "halloween" || savedTheme === "spooky") {
+            savedTheme = "default";
+            localStorage.setItem("SSV-theme", "default");
+            localStorage.setItem("KAMAT-theme", "default");
+        }
+        if (savedTheme && availableThemes.includes(savedTheme)) {
+            applyTheme(savedTheme);
+        }
+
+        applyTabSettings(
+            localStorage.getItem("SSV-tab-title") || localStorage.getItem("KAMAT-tab-title") || "",
+            localStorage.getItem("SSV-tab-favicon") || localStorage.getItem("KAMAT-tab-favicon") || ""
+        );
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("app") === "movies" || urlParams.get("view") === "movies") {
+            launch("movies");
+        } else {
+            launch("movies");
+        }
+        if (window.lucide) lucide.createIcons();
+    </script>
+</body>
+
+</html>

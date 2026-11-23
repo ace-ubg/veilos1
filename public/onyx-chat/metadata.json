@@ -1,0 +1,6 @@
+{
+  "name": "Onyx Multi-Channel Chat",
+  "description": "A dark-themed multi-channel real-time chat application with direct messaging, custom user profiles, avatars, role management, and administrative moderation controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
