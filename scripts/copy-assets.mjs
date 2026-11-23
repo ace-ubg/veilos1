@@ -1,4 +1,4 @@
-import { mkdirSync, cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
@@ -10,6 +10,7 @@ import { patchSapphire } from "./patch-sapphire.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const outDir = join(root, process.env.OUTPUT_DIR || "public");
+const isVercel = Boolean(process.env.VERCEL);
 
 patchSapphire();
 
@@ -30,19 +31,31 @@ console.log(`Copying static client runtime assets to ${outDir}...`);
 
 mkdirSync(outDir, { recursive: true });
 
-const copyDir = (src, dest) => {
+const copyDir = (src, dest, filter) => {
 	if (src && existsSync(src)) {
 		mkdirSync(dest, { recursive: true });
-		cpSync(src, dest, { recursive: true });
+		cpSync(src, dest, { recursive: true, ...(filter ? { filter } : {}) });
 		console.log(`  ✓ Copied ${src} -> ${dest}`);
 	} else {
 		console.warn(`  ! Warning: Source directory missing: ${src}`);
 	}
 };
 
-copyDir(join(root, "static"), outDir);
+const staticDir = join(root, "static");
+copyDir(staticDir, outDir, (src) => {
+	if (isVercel) {
+		const rel = src.slice(staticDir.length).replaceAll("\\", "/");
+		if (rel === "/chat.html" || rel === "/onyx-chat" || rel.startsWith("/onyx-chat/")) {
+			return false;
+		}
+	}
+	return true;
+});
 
-if (existsSync(join(root, "onyx-chat"))) {
+if (isVercel) {
+	rmSync(join(outDir, "onyx-chat"), { recursive: true, force: true });
+	rmSync(join(outDir, "chat.html"), { force: true });
+} else if (existsSync(join(root, "onyx-chat"))) {
 	const onyxDistHtml = join(root, "onyx-chat", "dist", "index.html");
 	if (!existsSync(onyxDistHtml)) {
 		const prebuilt = existsSync(join(root, "static", "chat.html"))
@@ -63,7 +76,7 @@ if (existsSync(join(root, "onyx-chat"))) {
 			}
 		}
 	}
-	copyDir(join(root, "onyx-chat"), join(outDir, "onyx-chat"));
+	rmSync(join(outDir, "onyx-chat"), { recursive: true, force: true });
 	if (existsSync(onyxDistHtml)) {
 		mkdirSync(join(outDir, "onyx-chat"), { recursive: true });
 		cpSync(onyxDistHtml, join(outDir, "onyx-chat", "index.html"));

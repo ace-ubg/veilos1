@@ -4,16 +4,15 @@ import { createServer } from "http";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { join } from "node:path";
-import rspackConfig from "./rspack.config.js";
-import { rspack } from "@rspack/core";
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { GoogleGenAI } from "@google/genai";
 import ts from "typescript";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 let aiClient = null;
 function getAiClient() {
@@ -34,11 +33,13 @@ function getAiClient() {
 	return aiClient;
 }
 
-try {
-	execSync("node scripts/copy-assets.mjs", { stdio: "inherit" });
-	execSync("node scripts/patch-sapphire-init.mjs", { stdio: "inherit" });
-} catch (e) {
-	console.error("Failed to sync static assets or apply patch:", e);
+if (!process.env.VERCEL) {
+	try {
+		execSync("node scripts/copy-assets.mjs", { cwd: __dirname, stdio: "inherit" });
+		execSync("node scripts/patch-sapphire-init.mjs", { cwd: __dirname, stdio: "inherit" });
+	} catch (e) {
+		console.error("Failed to sync static assets or apply patch:", e);
+	}
 }
 
 const bare = createBareServer("/bare/", {
@@ -71,53 +72,66 @@ const fastify = Fastify({
 });
 
 fastify.register(fastifyStatic, {
-	root: join(fileURLToPath(new URL(".", import.meta.url)), "./public"),
+	root: join(__dirname, "public"),
 	decorateReply: false,
 });
 fastify.register(fastifyStatic, {
-	root: join(fileURLToPath(new URL(".", import.meta.url)), "./assets"),
+	root: join(__dirname, "assets"),
 	prefix: "/assets/",
 	decorateReply: false,
 });
 
-fastify.get("/onyx-chat", async (request, reply) => {
-	const chatDist = existsSync("./public/onyx-chat/index.html")
-		? "./public/onyx-chat/index.html"
-		: (existsSync("./onyx-chat/dist/index.html")
-			? "./onyx-chat/dist/index.html"
-			: "./public/chat.html");
-	if (existsSync(chatDist)) {
-		const html = readFileSync(chatDist, "utf8");
-		return reply.type("text/html; charset=utf-8").send(html);
+async function serveOnyxChat(request, reply) {
+	if (process.env.ONYX_CHAT_URL) {
+		try {
+			const targetUrl = new URL("/index.html", process.env.ONYX_CHAT_URL);
+			const upstream = await fetch(targetUrl, {
+				headers: {
+					Accept: request.headers.accept || "text/html,application/xhtml+xml,*/*",
+				},
+			});
+			const html = await upstream.text();
+			return reply
+				.code(upstream.status)
+				.type(upstream.headers.get("content-type") || "text/html; charset=utf-8")
+				.send(html);
+		} catch (err) {
+			console.error("Failed to fetch bound onyx-chat service:", err);
+			return reply.code(502).send({ error: "Failed to reach onyx-chat service" });
+		}
 	}
-	return reply.redirect("/chat.html");
-});
 
-fastify.get("/onyx-chat/", async (request, reply) => {
-	const chatDist = existsSync("./public/onyx-chat/index.html")
-		? "./public/onyx-chat/index.html"
-		: (existsSync("./onyx-chat/dist/index.html")
-			? "./onyx-chat/dist/index.html"
-			: "./public/chat.html");
-	if (existsSync(chatDist)) {
-		const html = readFileSync(chatDist, "utf8");
-		return reply.type("text/html; charset=utf-8").send(html);
+	const candidates = [
+		join(__dirname, "public", "onyx-chat", "index.html"),
+		join(__dirname, "onyx-chat", "dist", "index.html"),
+		join(__dirname, "public", "chat.html"),
+	];
+	for (const candidate of candidates) {
+		if (existsSync(candidate)) {
+			const html = readFileSync(candidate, "utf8");
+			return reply.type("text/html; charset=utf-8").send(html);
+		}
 	}
-	return reply.redirect("/chat.html");
-});
+	return reply.code(404).send("Onyx Chat bundle not found");
+}
 
+fastify.get("/onyx-chat", serveOnyxChat);
+fastify.get("/onyx-chat/", serveOnyxChat);
+fastify.get("/chat.html", serveOnyxChat);
 fastify.get("/chat", async (request, reply) => {
 	return reply.redirect("/chat.html");
 });
 
 function getDataTsPath() {
-	if (existsSync("./data.tsx")) return "./data.tsx";
-	if (existsSync("./src/data.tsx")) return "./src/data.tsx";
-	if (existsSync("./static/data.tsx")) return "./static/data.tsx";
-	if (existsSync("./data.ts")) return "./data.ts";
-	if (existsSync("./src/data.ts")) return "./src/data.ts";
-	if (existsSync("./static/data.ts")) return "./static/data.ts";
-	return null;
+	const candidates = [
+		join(__dirname, "data.tsx"),
+		join(__dirname, "src", "data.tsx"),
+		join(__dirname, "static", "data.tsx"),
+		join(__dirname, "data.ts"),
+		join(__dirname, "src", "data.ts"),
+		join(__dirname, "static", "data.ts"),
+	];
+	return candidates.find((p) => existsSync(p)) || null;
 }
 
 function transpileDataFile(source) {
@@ -1046,37 +1060,49 @@ fastify.get("/api/webstore/download", async (request, reply) => {
 	}
 });
 
-const PORT = 3000;
-
-fastify.listen({
-	port: PORT,
-	host: "0.0.0.0",
-});
+const PORT = Number(process.env.PORT) || 3000;
 
 fastify.setNotFoundHandler((request, reply) => {
 	console.error("PAGE PUNCHED THROUGH SW - " + request.url);
 	reply.code(593).send("punch through");
 });
-console.log(`Listening on http://localhost:${PORT}/`);
-if (process.env.NODE_ENV !== "production" && existsSync(".git")) {
-	try {
-		writeFileSync(
-			".git/hooks/pre-commit",
-			"pnpm format\ngit update-index --again"
-		);
-		chmodSync(".git/hooks/pre-commit", 0o755);
-	} catch {}
 
-	const compiler = rspack(rspackConfig);
-	compiler.watch({}, (err, stats) => {
-		console.log(
-			stats
-				? stats.toString({
-						preset: "minimal",
-						colors: true,
-						version: false,
-					})
-				: ""
-		);
+if (!process.env.VERCEL) {
+	fastify.listen({
+		port: PORT,
+		host: "0.0.0.0",
 	});
+	console.log(`Listening on http://localhost:${PORT}/`);
+
+	if (process.env.NODE_ENV !== "production" && existsSync(join(__dirname, ".git"))) {
+		try {
+			writeFileSync(
+				join(__dirname, ".git/hooks/pre-commit"),
+				"pnpm format\ngit update-index --again"
+			);
+			chmodSync(join(__dirname, ".git/hooks/pre-commit"), 0o755);
+		} catch {}
+
+		const [{ default: rspackConfig }, { rspack }] = await Promise.all([
+			import("./rspack.config.js"),
+			import("@rspack/core"),
+		]);
+		const compiler = rspack(rspackConfig);
+		compiler.watch({}, (err, stats) => {
+			console.log(
+				stats
+					? stats.toString({
+							preset: "minimal",
+							colors: true,
+							version: false,
+						})
+					: ""
+			);
+		});
+	}
+}
+
+export default async function handler(req, res) {
+	await fastify.ready();
+	fastify.server.emit("request", req, res);
 }

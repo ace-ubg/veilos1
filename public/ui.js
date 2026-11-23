@@ -2,6 +2,12 @@ const API_BASE = "https://veilos-s-production.up.railway.app";
 let _apiBaseReachable = null;
 
 async function safeApiFetch(urlPath, options) {
+	try {
+		const localRes = await fetch(urlPath, options);
+		if (localRes.ok || localRes.status < 500) {
+			return localRes;
+		}
+	} catch (_) {}
 	if (API_BASE && _apiBaseReachable !== false) {
 		try {
 			const res = await fetch(`${API_BASE}${urlPath}`, options);
@@ -10,6 +16,7 @@ async function safeApiFetch(urlPath, options) {
 				return res;
 			}
 			_apiBaseReachable = false;
+			return res;
 		} catch (_) {
 			_apiBaseReachable = false;
 		}
