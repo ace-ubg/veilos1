@@ -1077,7 +1077,7 @@
         const splashes = [
             "HIGH SPEED STREAMING VIA SCRAMJET & BAREMUX",
             "HD STREAMING VIA SCRAMJET ENGINE",
-            "CINEMA ON SPADEOS",
+            "CINEMA ON VEILOS",
             "ZERO ADS • HIGH SPEED STREAMING MIRRORS",
             "BINGE YOUR FAVORITE MOVIES & EPISODES"
         ];
@@ -1257,7 +1257,7 @@
             try {
                 if (window.ScramjetHost) {
                     localScramjet = await window.ScramjetHost.boot({
-                        transport: "/epoxy/index.mjs",
+                        transport: "/libcurl/index.mjs",
                         wisp: WISP_URL
                     });
                 }

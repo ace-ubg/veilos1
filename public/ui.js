@@ -43,7 +43,7 @@ var store = (typeof window !== "undefined" && window.store) ||
 	(typeof store !== "undefined" ? store : null);
 
 if (!store) {
-	console.warn("[SpadeOS UI] Global store not found, initializing fallback store");
+	console.warn("[VeilOS UI] Global store not found, initializing fallback store");
 	var fallbackInitial = {
 		url: "https://google.com",
 		wispurl: (typeof _CONFIG !== "undefined" && _CONFIG && _CONFIG.wispurl) ||
@@ -53,9 +53,9 @@ if (!store) {
 			(typeof window !== "undefined" && window._CONFIG && window._CONFIG.bareurl) ||
 			"https://fern.best/bare/",
 		proxy: "",
-		transport: "/epoxy/index.mjs",
+		transport: "/libcurl/index.mjs",
 		searchEngine: "google",
-		tabCloak: "spade",
+		tabCloak: "veil",
 		customCloakTitle: "",
 		customCloakIcon: "",
 		autoAboutBlank: false,
@@ -74,9 +74,9 @@ if (!store) {
 		wallpaper: "assets/background.jpg",
 		accentColor: "indigo",
 		notes: [
-			{ id: "note_1", title: "Welcome to SpadeOS", content: "# SpadeOS\n\nWelcome to SpadeOS Web Operating System!", updatedAt: Date.now() }
+			{ id: "note_1", title: "Welcome to VeilOS", content: "# VeilOS\n\nWelcome to VeilOS Web Operating System!", updatedAt: Date.now() }
 		],
-		osUsername: "Spade User",
+		osUsername: "Veil User",
 		dockPosition: "bottom"
 	};
 
@@ -136,11 +136,11 @@ const handleModalClose = (dialogEl) => {
 	window.closeSettingsModal();
 };
 
-const UI_SPADE_VERSION = (typeof window !== "undefined" && (window.SPADE_VERSION || window.VEIL_VERSION)) ||
-	(typeof SPADE_VERSION !== "undefined" ? SPADE_VERSION : "v0.9.1");
+const UI_VEIL_VERSION = (typeof window !== "undefined" && (window.VEIL_VERSION || window.SPADE_VERSION)) ||
+	(typeof VEIL_VERSION !== "undefined" ? VEIL_VERSION : "v0.9.1");
 if (typeof window !== "undefined") {
-	if (!window.SPADE_VERSION) window.SPADE_VERSION = UI_SPADE_VERSION;
-	if (!window.VEIL_VERSION) window.VEIL_VERSION = UI_SPADE_VERSION;
+	if (!window.VEIL_VERSION) window.VEIL_VERSION = UI_VEIL_VERSION;
+	if (!window.SPADE_VERSION) window.SPADE_VERSION = UI_VEIL_VERSION;
 }
 
 const DEFAULT_WISP_URL = (typeof _CONFIG !== "undefined" && _CONFIG && _CONFIG.wispurl) ||
@@ -232,15 +232,20 @@ const resolveWispUrl = async (preferredWisp, { forceProbe = false } = {}) => {
 const applyTransport = async (transport, wispurl) => {
 	const host = window.ScramjetHost && window.ScramjetHost.current;
 	if (!host) return;
+	const primary = transport || "/libcurl/index.mjs";
+	const fallbackTransport = String(primary).includes("epoxy") ? "/libcurl/index.mjs" : "/epoxy/index.mjs";
+	const targetWisp = await resolveWispUrl(wispurl);
 	try {
-		const targetWisp = await resolveWispUrl(wispurl);
-		await host.setTransport(transport || "/epoxy/index.mjs", targetWisp);
+		await host.setTransport(primary, targetWisp);
+		if (typeof store !== "undefined") {
+			store.transport = primary;
+		}
 	} catch (err) {
-		console.warn("Failed to set transport " + transport + ", falling back to libcurl:", err);
+		console.warn(`Failed to set transport ${primary}, falling back to ${fallbackTransport}:`, err);
 		try {
-			await host.setTransport("/libcurl/index.mjs", await resolveWispUrl(wispurl));
+			await host.setTransport(fallbackTransport, targetWisp);
 			if (typeof store !== "undefined") {
-				store.transport = "/libcurl/index.mjs";
+				store.transport = fallbackTransport;
 			}
 		} catch (fallbackErr) {
 			console.error("Fallback transport also failed:", fallbackErr);
@@ -254,19 +259,21 @@ const reconnectWispTransport = async (overrideWisp) => {
 	const targetWisp = overrideWisp
 		? ensureTrailingSlash(overrideWisp)
 		: await resolveWispUrl(typeof store !== "undefined" ? store.wispurl : null, { forceProbe: true });
+	const primary = (typeof store !== "undefined" && store.transport) || "/libcurl/index.mjs";
+	const fallbackTransport = String(primary).includes("epoxy") ? "/libcurl/index.mjs" : "/epoxy/index.mjs";
 	try {
 		console.log("[Wisp] Reconnecting transport with target:", targetWisp);
-		await host.setTransport("/epoxy/index.mjs", targetWisp);
+		await host.setTransport(primary, targetWisp);
 		if (typeof store !== "undefined") {
-			store.transport = "/epoxy/index.mjs";
+			store.transport = primary;
 		}
 		return true;
 	} catch (err) {
-		console.warn("[Wisp] Reconnection failed, falling back to libcurl:", err);
+		console.warn(`[Wisp] Reconnection with ${primary} failed, falling back to ${fallbackTransport}:`, err);
 		try {
-			await host.setTransport("/libcurl/index.mjs", targetWisp);
+			await host.setTransport(fallbackTransport, targetWisp);
 			if (typeof store !== "undefined") {
-				store.transport = "/libcurl/index.mjs";
+				store.transport = fallbackTransport;
 			}
 			return true;
 		} catch (fallbackErr) {
@@ -533,7 +540,7 @@ function Config() {
         <div class="modal-header">
           <div class="modal-title">
             <i class="fa-solid fa-gear text-indigo-400"></i>
-            <span>SpadeOS Preferences & Cloak</span>
+            <span>VeilOS Preferences & Cloak</span>
           </div>
         </div>
 
@@ -590,8 +597,9 @@ function Config() {
               </div>
             `;
 					} else {
+						const defaultVeilIcon = (typeof window !== "undefined" && window.VEIL_ICON_DATA_URL) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='100%25' stop-color='%2338bdf8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%2309090b'/%3E%3Cpath d='M16 18L32 48L48 18H39.5L32 33.5L24.5 18H16Z' fill='url(%23g)'/%3E%3C/svg%3E";
 						const presets = window.TAB_CLOAK_PRESETS || [
-							{ id: "spade", name: "SpadeOS (Default)", title: "SpadeOS", icon: "assets/spadeos-emblem.jpg" },
+							{ id: "veil", name: "VeilOS (Default)", title: "VeilOS", icon: defaultVeilIcon },
 							{ id: "google", name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
 							{ id: "classroom", name: "Google Classroom", title: "Classes", icon: "https://ssl.gstatic.com/classroom/favicon.png" },
 							{ id: "drive", name: "Google Drive", title: "My Drive - Google Drive", icon: "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" },
@@ -599,7 +607,7 @@ function Config() {
 							{ id: "canvas", name: "Canvas LMS", title: "Canvas", icon: "https://du11hjcvx0uqb.cloudfront.net/dist/images/favicon-e10d657a73.ico" },
 							{ id: "desmos", name: "Desmos Calculator", title: "Desmos | Graphing Calculator", icon: "https://www.desmos.com/favicon.ico" }
 						];
-						const curCloak = (!store.tabCloak || store.tabCloak === "default") ? "spade" : store.tabCloak;
+						const curCloak = (!store.tabCloak || store.tabCloak === "default" || store.tabCloak === "spade") ? "veil" : store.tabCloak;
 						return html`
               <div class="flex flex-col gap-3 mb-4 animate-fade">
                 <div class="section-title">Tab Cloak Presets</div>
@@ -619,7 +627,7 @@ function Config() {
 												this.cfgTab = "cloak";
 											}}>
                       <div class="flex items-center gap-2 truncate">
-                        <img src="${p.icon || 'assets/spadeos-emblem.jpg'}" class="w-4 h-4 rounded object-contain shrink-0" onerror="this.src='assets/spadeos-emblem.jpg'" />
+                        <img src="${p.icon || defaultVeilIcon}" class="w-4 h-4 rounded object-contain shrink-0" />
                         <span class="truncate">${p.name}</span>
                       </div>
                       ${isSel ? html`<i class="fa-solid fa-circle-check text-indigo-300 text-xs shrink-0"></i>` : null}
@@ -653,6 +661,7 @@ function Config() {
 												const checked = Boolean(e.target.checked);
 												store.autoAboutBlank = checked;
 												try {
+													localStorage.setItem("veil_auto_about_blank", checked ? "true" : "false");
 													localStorage.setItem("spade_auto_about_blank", checked ? "true" : "false");
 												} catch(err) {}
 												this.cfgTab = "cloak";
@@ -675,9 +684,9 @@ function Config() {
 						}}>
             <div class="flex items-center gap-2">
               <i class="fa-solid fa-scroll text-sky-400"></i>
-              <span>View SpadeOS Changelog & Credits</span>
+              <span>View VeilOS Changelog & Credits</span>
             </div>
-            <span class="text-[10px] text-sky-400 font-mono tabular-nums">${UI_SPADE_VERSION} &rarr;</span>
+            <span class="text-[10px] text-sky-400 font-mono tabular-nums">${UI_VEIL_VERSION} &rarr;</span>
           </button>
 
           <button class="close-btn" on:click=${() => {
@@ -700,10 +709,29 @@ window.addEventListener("load", async () => {
 
 	let scramjet;
 	try {
-		scramjet = await window.ScramjetHost.boot({
-			transport: store.transport,
-			wisp: await resolveWispUrl(store.wispurl),
-		});
+		const preferredTransport = store.transport || "/libcurl/index.mjs";
+		const bootWisp = await resolveWispUrl(store.wispurl);
+		try {
+			scramjet = await window.ScramjetHost.boot({
+				transport: preferredTransport,
+				wisp: bootWisp,
+			});
+			if (scramjet && scramjet.transportKind && typeof store !== "undefined") {
+				store.transport = scramjet.transportKind === "epoxy" ? "/epoxy/index.mjs" : "/libcurl/index.mjs";
+			}
+		} catch (bootErr) {
+			const fallbackTransport = String(preferredTransport).includes("epoxy")
+				? "/libcurl/index.mjs"
+				: "/epoxy/index.mjs";
+			console.warn(`[Scramjet] Failed to start with ${preferredTransport}, falling back to ${fallbackTransport}:`, bootErr);
+			scramjet = await window.ScramjetHost.boot({
+				transport: fallbackTransport,
+				wisp: bootWisp,
+			});
+			if (typeof store !== "undefined") {
+				store.transport = fallbackTransport;
+			}
+		}
 	} catch (err) {
 		console.error("[Scramjet] Failed to start:", err);
 		return;
@@ -727,14 +755,14 @@ window.addEventListener("load", async () => {
 		},
 		{
 			author: "Obamamegagon",
-			quote: "SpadeOS is tuff like me",
+			quote: "VeilOS is tuff like me",
 			role: "Owner of Potatoland and Black Hat",
 			icon: "fa-solid fa-hat-cowboy",
 			avatarBg: "bg-gradient-to-br from-indigo-500 to-purple-700"
 		},
 		{
 			author: "hvtrs",
-			quote: "spadeos mogs figure",
+			quote: "veilos mogs figure",
 			role: "Ex-Owner of Cherri",
 			icon: "fa-solid fa-crown",
 			avatarBg: "bg-gradient-to-br from-rose-600 to-pink-700"
@@ -755,7 +783,7 @@ window.addEventListener("load", async () => {
 		},
 		{
 			author: "Rasha",
-			quote: "spade os is so clean and fast 👌",
+			quote: "veil os is so clean and fast 👌",
 			role: "Owner of Niche and T9 Network",
 			icon: "fa-solid fa-fingerprint",
 			avatarBg: "bg-gradient-to-br from-emerald-600 to-teal-800"
@@ -776,14 +804,14 @@ window.addEventListener("load", async () => {
 		},
 		{
 			author: "Suki",
-			quote: "If you use Spade you have aura",
+			quote: "If you use Veil you have aura",
 			role: "Owner of Celsius",
 			icon: "fa-solid fa-sun",
 			avatarBg: "bg-gradient-to-br from-amber-500 to-orange-600"
 		},
 		{
 			author: "midnight",
-			quote: "SpadeOS runs the web desktop",
+			quote: "VeilOS runs the web desktop",
 			role: "Owner of Nocturne",
 			icon: "fa-solid fa-moon",
 			avatarBg: "bg-gradient-to-br from-slate-700 to-indigo-900"
@@ -797,7 +825,7 @@ window.addEventListener("load", async () => {
 		},
 		{
 			author: "taii",
-			quote: "spadeos is amazing i love it",
+			quote: "veilos is amazing i love it",
 			role: "Owner of Mizumath",
 			icon: "fa-solid fa-heart",
 			avatarBg: "bg-gradient-to-br from-teal-500 to-emerald-700"
@@ -864,23 +892,10 @@ window.addEventListener("load", async () => {
 			iconClass: "fa-solid fa-brain", 
 			iconColor: "text-purple-400", 
 			dockGradient: "from-indigo-600 via-purple-600 to-pink-500", 
-			desc: "Scenario AI Assistant (ZXS / Material)", 
+			desc: "Scenario AI Assistant (proxied via scenario-wheat.vercel.app)", 
 			category: "Productivity", 
 			defaultW: 1040, 
 			defaultH: 700, 
-			inDock: false 
-		},
-		{ 
-			id: "ampler", 
-			name: "Ampler Launcher", 
-			logoUrl: null, 
-			iconClass: "fa-solid fa-cube", 
-			iconColor: "text-emerald-400", 
-			dockGradient: "from-emerald-600 via-teal-600 to-indigo-700", 
-			desc: "Minecraft & Eaglercraft web launcher (Ampler Launcher)", 
-			category: "Gaming", 
-			defaultW: 1080, 
-			defaultH: 720, 
 			inDock: false 
 		},
 		{ 
@@ -937,7 +952,7 @@ window.addEventListener("load", async () => {
 		},
 		{ 
 			id: "terminal", 
-			name: "Spade Terminal", 
+			name: "Veil Terminal", 
 			logoUrl: null, 
 			iconClass: "fa-solid fa-terminal", 
 			iconColor: "text-emerald-400", 
@@ -950,7 +965,7 @@ window.addEventListener("load", async () => {
 		},
 		{ 
 			id: "files", 
-			name: "Spade Files", 
+			name: "Veil Files", 
 			logoUrl: null, 
 			iconClass: "fa-solid fa-folder-open", 
 			iconColor: "text-amber-400", 
@@ -976,7 +991,7 @@ window.addEventListener("load", async () => {
 		}
 	];
 
-	function SpadeOS() {
+	function VeilOS() {
 		window.osGlobalInstance = this;
 		this.appsList = APPS;
 		this.windows = [];
@@ -1068,7 +1083,7 @@ window.addEventListener("load", async () => {
 		searchInput.autocomplete = "off";
 		searchInput.spellcheck = false;
 		searchInput.className = "flex-1 bg-transparent text-white placeholder-neutral-400 outline-none text-sm font-sans";
-		searchInput.placeholder = "Search SpadeOS apps or type a web address...";
+		searchInput.placeholder = "Search VeilOS apps or type a web address...";
 		searchHeader.appendChild(searchInput);
 
 		const escBadge = document.createElement("span");
@@ -1359,7 +1374,7 @@ window.addEventListener("load", async () => {
 			if (this.isUnlocking) return;
 			this.isUnlocking = true;
 			(window.SpadeAudio || window.VeilAudio) && (window.SpadeAudio || window.VeilAudio).playChime();
-			const lockEl = document.getElementById("spade-lock-screen") || document.getElementById("veil-lock-screen");
+			const lockEl = document.getElementById("veil-lock-screen") || document.getElementById("spade-lock-screen");
 			if (lockEl) {
 				lockEl.classList.add("animate-lock-unlock");
 				setTimeout(() => {
@@ -1716,7 +1731,7 @@ window.addEventListener("load", async () => {
 						return html`
 							<img 
 								src="${wp}"
-								alt="SpadeOS Wallpaper"
+								alt="VeilOS Wallpaper"
 								onerror="this.src='assets/background.jpg'"
 								class="w-full h-full object-cover pointer-events-none select-none" />
 						`;
@@ -1801,7 +1816,7 @@ window.addEventListener("load", async () => {
 							this.appsMenuOpen = false;
 						}
 						this.windows = [...this.windows];
-					}} title="Toggle SpadeOS Menu">
+					}} title="Toggle VeilOS Menu">
 					<i class="fa-solid fa-bars text-base text-indigo-400"></i>
 				</button>
 
@@ -1816,9 +1831,9 @@ window.addEventListener("load", async () => {
 					<div class="flex items-center justify-between px-1 pb-1 border-b border-white/10">
 						<div class="flex items-center gap-2">
 							<div class="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-xs text-indigo-400">
-								<i class="fa-solid fa-spade"></i>
+								<i class="fa-solid fa-mask"></i>
 							</div>
-							<span class="text-sm font-bold text-white tracking-wider uppercase">SpadeOS Menu</span>
+							<span class="text-sm font-bold text-white tracking-wider uppercase">VeilOS Menu</span>
 						</div>
 						<button class="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/15 text-neutral-400 hover:text-white text-xs flex items-center justify-center cursor-pointer transition-colors"
 							on:click=${(e) => { e.stopPropagation(); this.startMenuOpen = false; this.windows = [...this.windows]; }} title="Close">
@@ -1890,7 +1905,7 @@ window.addEventListener("load", async () => {
 							<div class="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-400/35 flex items-center justify-center text-indigo-400">
 								<i class="fa-solid fa-gear text-xs"></i>
 							</div>
-							<span class="text-xs font-semibold">SpadeOS Preferences & Cloak</span>
+							<span class="text-xs font-semibold">VeilOS Preferences & Cloak</span>
 						</div>
 						<i class="fa-solid fa-chevron-right text-[10px] text-neutral-400"></i>
 					</button>
@@ -1907,7 +1922,7 @@ window.addEventListener("load", async () => {
 							</div>
 							<div class="flex flex-col text-left">
 								<span class="font-bold text-white text-[11px]">Changelog & Credits</span>
-								<span class="text-[9px] text-neutral-400 tabular-nums">${UI_SPADE_VERSION} &bull; 65+ updates & attributions</span>
+								<span class="text-[9px] text-neutral-400 tabular-nums">${UI_VEIL_VERSION} &bull; 65+ updates & attributions</span>
 							</div>
 						</div>
 						<i class="fa-solid fa-chevron-right text-[10px] text-indigo-400"></i>
@@ -2034,12 +2049,12 @@ window.addEventListener("load", async () => {
 							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("terminal"); }}>
 								<i class="fa-solid fa-terminal text-emerald-400 w-4"></i>
-								<span>Spade Terminal</span>
+								<span>Veil Terminal</span>
 							</button>
 							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("files"); }}>
 								<i class="fa-solid fa-folder-open text-amber-400 w-4"></i>
-								<span>Spade Files</span>
+								<span>Veil Files</span>
 							</button>
 							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("ai"); }}>
@@ -2055,11 +2070,6 @@ window.addEventListener("load", async () => {
 								on:click=${() => { this.contextMenu.open = false; this.openApp("music"); }}>
 								<i class="fa-solid fa-music text-rose-400 w-4"></i>
 								<span>Sonora</span>
-							</button>
-							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
-								on:click=${() => { this.contextMenu.open = false; this.openApp("ampler"); }}>
-								<i class="fa-solid fa-cube text-emerald-400 w-4"></i>
-								<span>Ampler Launcher</span>
 							</button>
 							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-indigo-300 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("changelog"); }}>
@@ -2081,7 +2091,7 @@ window.addEventListener("load", async () => {
 					`;
 				})}
 
-				<div id="spade-lock-screen" class="fixed inset-0 z-50 bg-[#09090b] flex flex-col items-center justify-between p-6 sm:p-8 text-white font-sans animate-fade select-none overflow-y-auto custom-scrollbar"
+				<div id="veil-lock-screen" class="fixed inset-0 z-50 bg-[#09090b] flex flex-col items-center justify-between p-6 sm:p-8 text-white font-sans animate-fade select-none overflow-y-auto custom-scrollbar"
 					style=${use(this.isLocked, (locked) => locked ? "display: flex;" : "display: none;")}>
 
 					<img src="assets/background.jpg" alt="" class="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none select-none" />
@@ -2106,19 +2116,22 @@ window.addEventListener("load", async () => {
 								<div class="relative group">
 									<div class="absolute -inset-1.5 rounded-full bg-gradient-to-r from-indigo-500 via-sky-400 to-indigo-500 opacity-65 blur-md animate-veil-glow"></div>
 									<div class="relative w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500/20 via-[#111118] to-sky-500/20 flex items-center justify-center shadow-xl border-2 border-indigo-400/45 overflow-hidden animate-veil-float p-1 shrink-0">
-										<img src="assets/spadeos-emblem.jpg" alt="SpadeOS" referrerpolicy="no-referrer"
-											onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
-											class="w-full h-full object-cover rounded-full transition-transform duration-500 group-hover:scale-110 drop-shadow-md" />
-										<div class="hidden w-full h-full items-center justify-center text-indigo-400 text-3xl">
-											<svg viewBox="0 0 24 24" class="w-10 h-10 fill-current" aria-hidden="true"><path d="M12 2C9 6.5 4 10 4 14.2c0 2.5 2 4.3 4.4 4.3 1.3 0 2.4-.6 3.1-1.5-.2 1.8-.9 3.4-2.2 4.5h5.4c-1.3-1.1-2-2.7-2.2-4.5.7.9 1.8 1.5 3.1 1.5 2.4 0 4.4-1.8 4.4-4.3C20 10 15 6.5 12 2z"/></svg>
-										</div>
+										<svg viewBox="0 0 64 64" class="w-11 h-11 drop-shadow-md transition-transform duration-500 group-hover:scale-110" aria-label="VeilOS">
+											<defs>
+												<linearGradient id="veilLockGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+													<stop offset="0%" stop-color="#6366f1"/>
+													<stop offset="100%" stop-color="#38bdf8"/>
+												</linearGradient>
+											</defs>
+											<path d="M12 14L32 52L52 14H41.5L32 33.5L22.5 14H12Z" fill="url(#veilLockGrad)"/>
+										</svg>
 									</div>
 								</div>
 
 								<div class="flex flex-col items-center gap-0.5 text-center">
-									<h2 class="text-base sm:text-lg font-bold tracking-tight text-white">${use(this.windows, () => (store && store.osUsername) ? store.osUsername : "Spade User")}</h2>
+									<h2 class="text-base sm:text-lg font-bold tracking-tight text-white">${use(this.windows, () => (store && store.osUsername) ? store.osUsername : "Veil User")}</h2>
 									<div class="flex items-center gap-2">
-										<span class="tracking-[0.22em] font-bold uppercase text-sm text-indigo-400">SPADEOS</span>
+										<span class="tracking-[0.22em] font-bold uppercase text-sm text-indigo-400">VEILOS</span>
 										<span class="text-[11px] text-neutral-400 font-medium">Web Desktop OS</span>
 									</div>
 								</div>
@@ -2162,7 +2175,7 @@ window.addEventListener("load", async () => {
 						<button class="flex items-center gap-2 hover:text-indigo-400 transition-colors cursor-pointer text-xs group"
 							on:click=${() => location.reload()}>
 							<i class="fa-solid fa-rotate-right text-xs transition-transform duration-500 group-hover:rotate-180"></i>
-							<span>Restart SpadeOS</span>
+							<span>Restart VeilOS</span>
 						</button>
 					</div>
 				</div>
@@ -2265,7 +2278,7 @@ window.addEventListener("load", async () => {
 								<div class="p-2 bg-neutral-900/98 border border-white/20 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col gap-1.5">
 									<div class="flex items-center justify-between px-1">
 										<span class="text-[9px] uppercase font-bold text-neutral-400 tracking-wider">Snap Layout</span>
-										<span class="text-[9px] text-indigo-400 font-semibold">SpadeOS Snap</span>
+										<span class="text-[9px] text-indigo-400 font-semibold">VeilOS Snap</span>
 									</div>
 									<div class="grid grid-cols-2 gap-1.5">
 										<button class="flex items-center gap-2 p-2 rounded-xl bg-white/5 hover:bg-emerald-600/30 hover:border-emerald-500/50 border border-white/10 text-neutral-200 hover:text-white text-xs font-medium transition-all cursor-pointer group/btn"
@@ -2351,8 +2364,6 @@ window.addEventListener("load", async () => {
 			el = renderCloudGamingApp(win, scramjet, osInstance);
 		} else if (appId === "music") {
 			el = renderMusicApp(win, scramjet, osInstance);
-		} else if (appId === "ampler") {
-			el = renderAmplerLauncherApp(win, scramjet, osInstance);
 		} else if (appId === "changelog") {
 			el = window.renderChangelogApp ? window.renderChangelogApp(win, scramjet, osInstance) : html`<div>Loading Changelog...</div>`;
 		} else {
@@ -2459,88 +2470,79 @@ window.addEventListener("load", async () => {
 		`;
 	}
 
-	function renderAmplerLauncherApp(win, scramjet, osInstance) {
-		if (!win.customState) {
-			win.customState = {};
-		}
-
-		if (!win.customState.iframe) {
-			const iframe = document.createElement("iframe");
-			iframe.className = "w-full h-full border-0 outline-none bg-[#0a0a0c] block";
-			iframe.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write; microphone; camera; keyboard";
-			iframe.src = "https://amplerlauncher-main.vercel.app/";
-			win.customState.iframe = iframe;
-		}
-
-		const iframe = win.customState.iframe;
-
-		return html`
-			<div class="w-full h-full relative bg-[#0a0a0c] overflow-hidden select-text flex flex-col">
-				<div class="h-8 bg-neutral-900/90 border-b border-white/10 px-3 flex items-center justify-between text-xs text-neutral-300 shrink-0">
-					<div class="flex items-center gap-2">
-						<button class="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-white"
-							on:click=${() => { try { iframe.contentWindow.history.back(); } catch(e){} }} title="Back">
-							<i class="fa-solid fa-arrow-left text-[10px]"></i>
-						</button>
-						<button class="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-white"
-							on:click=${() => { try { iframe.contentWindow.history.forward(); } catch(e){} }} title="Forward">
-							<i class="fa-solid fa-arrow-right text-[10px]"></i>
-						</button>
-						<button class="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-white"
-							on:click=${() => { iframe.src = "https://amplerlauncher-main.vercel.app/"; }} title="Reload Home">
-							<i class="fa-solid fa-rotate-right text-[10px]"></i>
-						</button>
-						<span class="text-[11px] text-neutral-300 font-semibold ml-1 flex items-center gap-1.5">
-							<i class="fa-solid fa-cube text-emerald-400 text-[10px]"></i>
-							<span>Ampler Launcher</span>
-						</span>
-					</div>
-					<div class="flex items-center gap-2">
-						<button class="text-[10px] text-neutral-400 hover:text-white px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-1 cursor-pointer"
-							on:click=${() => {
-								osInstance.openApp("browser", "Ampler Launcher", { url: "https://amplerlauncher-main.vercel.app/" });
-							}} title="Open in Onyx Browser">
-							<i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-							<span>Open in Browser</span>
-						</button>
-					</div>
-				</div>
-				<div class="flex-1 w-full h-full relative overflow-hidden">
-					${iframe}
-				</div>
-			</div>
-		`;
-	}
-
 	function renderOnyxAIApp(win, scramjet, osInstance) {
+		const SCENARIO_TARGET_URL = "https://scenario-wheat.vercel.app/";
+		const getProxiedScenarioUrl = () => {
+			try {
+				if (scramjet && typeof scramjet.encodeUrl === "function") {
+					return scramjet.encodeUrl(SCENARIO_TARGET_URL);
+				}
+			} catch (e) {}
+			return "/scramjet/" + encodeURIComponent(SCENARIO_TARGET_URL);
+		};
+
 		if (!win.customState) {
 			win.customState = {};
 		}
 
-		if (!win.customState.iframe) {
-			const iframe = document.createElement("iframe");
+		if (!win.customState.frameObj && !win.customState.iframe) {
+			const frameObj = (scramjet && typeof scramjet.createFrame === "function")
+				? scramjet.createFrame()
+				: null;
+			const iframe = frameObj ? frameObj.frame : document.createElement("iframe");
 			iframe.className = "w-full h-full border-0 outline-none bg-[#09090d] block";
 			iframe.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write; microphone; camera";
-			iframe.src = "https://onyxai-fornow-ochre.vercel.app/";
+
+			const navigateScenario = () => {
+				if (frameObj && typeof frameObj.go === "function") {
+					frameObj.go(SCENARIO_TARGET_URL);
+				} else {
+					iframe.src = getProxiedScenarioUrl();
+				}
+			};
+
+			if ("serviceWorker" in navigator && !navigator.serviceWorker.controller) {
+				Promise.race([
+					navigator.serviceWorker.ready,
+					new Promise((resolve) => setTimeout(resolve, 3000))
+				]).then(() => {
+					navigateScenario();
+				}).catch(() => {
+					navigateScenario();
+				});
+			} else {
+				navigateScenario();
+			}
+
+			win.customState.frameObj = frameObj;
 			win.customState.iframe = iframe;
+			win.customState.navigateScenario = navigateScenario;
 		}
 
+		const frameObj = win.customState.frameObj;
 		const iframe = win.customState.iframe;
+		const navigateScenario = win.customState.navigateScenario || (() => {
+			if (frameObj && typeof frameObj.go === "function") {
+				frameObj.go(SCENARIO_TARGET_URL);
+			} else {
+				iframe.src = getProxiedScenarioUrl();
+			}
+		});
 
 		return html`
 			<div class="w-full h-full relative bg-[#09090d] overflow-hidden select-text flex flex-col">
 				<div class="h-8 bg-neutral-900/90 border-b border-white/10 px-3 flex items-center justify-between text-xs text-neutral-300 shrink-0">
 					<div class="flex items-center gap-2">
 						<button class="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-white"
-							on:click=${() => { try { iframe.contentWindow.history.back(); } catch(e){} }} title="Back">
+							on:click=${() => { try { if (frameObj && typeof frameObj.back === "function") frameObj.back(); else iframe.contentWindow.history.back(); } catch(e){} }} title="Back">
 							<i class="fa-solid fa-arrow-left text-[10px]"></i>
 						</button>
 						<button class="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-white"
-							on:click=${() => { try { iframe.contentWindow.history.forward(); } catch(e){} }} title="Forward">
+							on:click=${() => { try { if (frameObj && typeof frameObj.forward === "function") frameObj.forward(); else iframe.contentWindow.history.forward(); } catch(e){} }} title="Forward">
 							<i class="fa-solid fa-arrow-right text-[10px]"></i>
 						</button>
 						<button class="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-white"
-							on:click=${() => { iframe.src = "https://onyxai-fornow-ochre.vercel.app/"; }} title="Reload Home">
+							on:click=${() => { navigateScenario(); }} title="Reload Home">
 							<i class="fa-solid fa-rotate-right text-[10px]"></i>
 						</button>
 						<span class="text-[11px] text-neutral-300 font-semibold ml-1 flex items-center gap-1.5">
@@ -2551,7 +2553,7 @@ window.addEventListener("load", async () => {
 					<div class="flex items-center gap-2">
 						<button class="text-[10px] text-neutral-400 hover:text-white px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-1 cursor-pointer"
 							on:click=${() => {
-								osInstance.openApp("browser", "Scenario", { url: "https://onyxai-fornow-ochre.vercel.app/" });
+								osInstance.openApp("browser", "Scenario", { url: SCENARIO_TARGET_URL });
 							}} title="Open in Onyx Browser">
 							<i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
 							<span>Open in Browser</span>
@@ -2907,7 +2909,7 @@ window.addEventListener("load", async () => {
 
 				const titleEl = document.createElement("h1");
 				titleEl.className = "text-6xl font-extrabold tracking-[0.16em] uppercase bg-gradient-to-r from-indigo-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent select-none";
-				titleEl.textContent = "SPADEOS";
+				titleEl.textContent = "VEILOS";
 				homeWrap.appendChild(titleEl);
 
 				const searchCard = document.createElement("div");
@@ -3930,7 +3932,7 @@ window.addEventListener("load", async () => {
 							<span class="text-lg">🎨</span>
 							<div>
 								<h3 class="text-sm font-bold text-white">Theme & Desktop Style</h3>
-								<p class="text-xs text-neutral-400">Select your active aesthetic theme for SpadeOS and Onyx Browser.</p>
+								<p class="text-xs text-neutral-400">Select your active aesthetic theme for VeilOS and Onyx Browser.</p>
 							</div>
 						</div>
 						<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
@@ -4034,14 +4036,14 @@ window.addEventListener("load", async () => {
 				const cloaksGrid = document.createElement("div");
 				cloaksGrid.className = "grid grid-cols-2 sm:grid-cols-3 gap-2.5";
 				const cloaks = [
-					{ id: "spade", label: "SpadeOS" },
+					{ id: "veil", label: "VeilOS" },
 					{ id: "google", label: "Google" },
 					{ id: "classroom", label: "Google Classroom" },
 					{ id: "drive", label: "Google Drive" },
 					{ id: "canvas", label: "Canvas LMS" },
 					{ id: "schoology", label: "Schoology" }
 				];
-				const curCloak = (!store.tabCloak || store.tabCloak === "default") ? "spade" : store.tabCloak;
+				const curCloak = (!store.tabCloak || store.tabCloak === "default" || store.tabCloak === "spade") ? "veil" : store.tabCloak;
 				cloaks.forEach(clk => {
 					const btn = document.createElement("button");
 					const isSel = curCloak === clk.id;
@@ -4079,7 +4081,7 @@ window.addEventListener("load", async () => {
 
 				const systemModalBtn = document.createElement("button");
 				systemModalBtn.className = "w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 hover:opacity-90 text-white font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer";
-				systemModalBtn.innerHTML = `<span>⚙️</span><span>Open SpadeOS System Settings Dialog</span>`;
+				systemModalBtn.innerHTML = `<span>⚙️</span><span>Open VeilOS System Settings Dialog</span>`;
 				systemModalBtn.onclick = () => {
 					window.openSettingsModal();
 				};
@@ -4179,11 +4181,7 @@ window.addEventListener("load", async () => {
 				}
 			}
 
-			if (target.includes("onyxai-fornow-ochre.vercel.app")) {
-				tabObj.frameObj.frame.src = target;
-			} else {
-				tabObj.frameObj.go(target);
-			}
+			tabObj.frameObj.go(target);
 			const cleanTarget = normalizeBrowserUrl(target);
 			tabObj.attemptedUrl = cleanTarget;
 			tabObj.url = cleanTarget;
@@ -4206,6 +4204,11 @@ window.addEventListener("load", async () => {
 			renderTabStrip();
 
 			const errorText = message || "Multiplexor task ended: Wisp(MuxTaskEnded). Connection stream terminated.";
+			const activeKind = (window.ScramjetHost && window.ScramjetHost.current && window.ScramjetHost.current.transportKind)
+				|| (String((typeof store !== "undefined" && store.transport) || "/libcurl/index.mjs").includes("epoxy") ? "epoxy" : "libcurl");
+			const alternateTransport = activeKind === "libcurl" ? "/epoxy/index.mjs" : "/libcurl/index.mjs";
+			const alternateLabel = activeKind === "libcurl" ? "Try epoxy" : "Try libcurl";
+
 			tabObj.errorEl.innerHTML = `
 				<div class="max-w-md w-full bg-[#11131c] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center gap-4 animate-fade">
 					<div class="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 text-2xl shadow-inner">
@@ -4228,7 +4231,7 @@ window.addEventListener("load", async () => {
 						</button>
 						<button class="retry-bare-btn py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-neutral-200 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95">
 							<i class="fa-solid fa-shield"></i>
-							<span>Try libcurl</span>
+							<span>${alternateLabel}</span>
 						</button>
 					</div>
 				</div>
@@ -4254,7 +4257,7 @@ window.addEventListener("load", async () => {
 					bareBtn.disabled = true;
 					bareBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Switching...</span>`;
 					if (window.applyTransport) {
-						await window.applyTransport("/libcurl/index.mjs");
+						await window.applyTransport(alternateTransport);
 					}
 					tabObj.errorEl.style.display = "none";
 					if (tabObj.frameObj && tabObj.frameObj.frame) {
@@ -5374,7 +5377,7 @@ window.addEventListener("load", async () => {
 
 	const appRoot = document.getElementById("app");
 	try {
-		appRoot.replaceWith(h(SpadeOS));
+		appRoot.replaceWith(h(VeilOS));
 	} catch (e) {
 		appRoot.replaceWith(document.createTextNode("" + e));
 		throw e;

@@ -602,7 +602,7 @@ fastify.post("/api/llm/chat", async (request, reply) => {
 			return reply.code(400).send({ error: "Messages or prompt required." });
 		}
 
-		const defaultSystem = systemInstruction || "You are Scenario, a powerful, fast, and helpful assistant built into SpadeOS. You assist with coding, web navigation, research, creative writing, and problem solving. Provide accurate, clear markdown formatted responses.";
+		const defaultSystem = systemInstruction || "You are Scenario, a powerful, fast, and helpful assistant built into VeilOS. You assist with coding, web navigation, research, creative writing, and problem solving. Provide accurate, clear markdown formatted responses.";
 
 		try {
 			const result = await callEmisChatCompletions({
@@ -713,7 +713,7 @@ fastify.post("/api/ai/chat", async (request, reply) => {
 			return reply.code(400).send({ error: "Prompt or message history is required." });
 		}
 
-		const defaultSystem = systemInstruction || "You are Spade AI, an intelligent, fast browser assistant built into SpadeOS. You help users navigate the web, summarize content, answer questions, explain code, and assist with creative or research tasks. Keep answers concise, accurate, formatted in clear markdown, and friendly.";
+		const defaultSystem = systemInstruction || "You are Veil AI, an intelligent, fast browser assistant built into VeilOS. You help users navigate the web, summarize content, answer questions, explain code, and assist with creative or research tasks. Keep answers concise, accurate, formatted in clear markdown, and friendly.";
 
 		try {
 			const result = await callEmisChatCompletions({
@@ -757,7 +757,7 @@ fastify.post("/api/ai/summarize", async (request, reply) => {
 		}
 
 		const summaryPrompt = `Please summarize this content concisely:\nTitle: ${title}\nURL: ${url}\n\nContent:\n${content.slice(0, 15000)}`;
-		const sysPrompt = "You are Spade AI Page Summarizer. Produce clear, elegant, markdown-formatted summaries including an executive summary (2-3 sentences), key takeaways (3-5 bullet points), and Conclusions/Actionable Insights.";
+		const sysPrompt = "You are Veil AI Page Summarizer. Produce clear, elegant, markdown-formatted summaries including an executive summary (2-3 sentences), key takeaways (3-5 bullet points), and Conclusions/Actionable Insights.";
 
 		try {
 			const result = await callEmisChatCompletions({

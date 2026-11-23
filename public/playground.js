@@ -10,7 +10,7 @@ gtag('config', 'G-0LH2MR13BF');
 
 var store = (typeof window !== "undefined" && window.store) ||
 	(typeof self !== "undefined" && self.store) ||
-	(typeof store !== "undefined" ? store : { transport: "/epoxy/index.mjs", wispurl: (typeof WISP_URL !== "undefined" ? WISP_URL : ((typeof window !== "undefined" && window.WISP_URL) || "wss://fern.best/wisp/")), bareurl: "https://fern.best/bare/" });
+	(typeof store !== "undefined" ? store : { transport: "/libcurl/index.mjs", wispurl: (typeof WISP_URL !== "undefined" ? WISP_URL : ((typeof window !== "undefined" && window.WISP_URL) || "wss://fern.best/wisp/")), bareurl: "https://fern.best/bare/" });
 const flex = css`
 	display: flex;
 `;

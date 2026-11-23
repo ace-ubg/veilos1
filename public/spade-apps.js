@@ -205,7 +205,7 @@
 				</div>
 
 				<div class="p-2.5 px-4 bg-[#111118] border-t border-white/10 flex items-center justify-between text-[11px] text-neutral-400">
-					<span>SpadeOS Process Supervisor v3.0</span>
+					<span>VeilOS Process Supervisor v3.0</span>
 					<button id="refresh-task-mgr" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0">
 						<i class="fa-solid fa-rotate-right text-[10px]"></i>
 						<span>Refresh</span>
@@ -249,8 +249,8 @@
 		root.className = "w-full h-full bg-[#09090b] text-neutral-100 font-mono text-xs flex flex-col overflow-hidden select-text p-3";
 
 		const historyLines = [
-			{ type: "sys", text: "SpadeOS Terminal v3.0.0 (x86_64-spade-linux)" },
-			{ type: "sys", text: "Type 'help' for available commands or 'spadefetch' for system info.\n" }
+			{ type: "sys", text: "VeilOS Terminal v3.0.0 (x86_64-veil-linux)" },
+			{ type: "sys", text: "Type 'help' for available commands or 'veilfetch' for system info.\n" }
 		];
 
 		const outputContainer = document.createElement("div");
@@ -262,7 +262,7 @@
 				const div = document.createElement("div");
 				if (item.type === "cmd") {
 					div.className = "flex items-center gap-2 text-sky-400 font-semibold";
-					div.innerHTML = `<span class="text-indigo-400">user@spadeos:~$</span> <span>${escapeHtml(item.text)}</span>`;
+					div.innerHTML = `<span class="text-indigo-400">user@veilos:~$</span> <span>${escapeHtml(item.text)}</span>`;
 				} else if (item.type === "sys") {
 					div.className = "text-neutral-400 whitespace-pre-wrap";
 					div.textContent = item.text;
@@ -284,7 +284,7 @@
 		const promptRow = document.createElement("div");
 		promptRow.className = "flex items-center gap-2 pt-2 border-t border-white/10 shrink-0 font-mono";
 		promptRow.innerHTML = `
-			<span class="text-indigo-400 font-bold shrink-0">user@spadeos:~$</span>
+			<span class="text-indigo-400 font-bold shrink-0">user@veilos:~$</span>
 			<input type="text" class="flex-1 bg-transparent text-white outline-none font-mono text-xs border-0 p-0" autocomplete="off" spellcheck="false" autofocus />
 		`;
 
@@ -307,8 +307,8 @@
 				historyLines.push({
 					type: "sys",
 					text: [
-						"SpadeOS Shell Built-in Commands:",
-						"  spadefetch     Display system overview and ASCII logo",
+						"VeilOS Shell Built-in Commands:",
+						"  veilfetch      Display system overview and ASCII logo",
 						"  open <app>     Launch an application (e.g. open browser, open ai, open games)",
 						"  ps             List all running window tasks",
 						"  kill <pid>     Terminate a running window",
@@ -319,17 +319,17 @@
 						"  echo <msg>     Echo a message to terminal"
 					].join("\n")
 				});
-			} else if (cmd === "spadefetch" || cmd === "veilfetch") {
+			} else if (cmd === "veilfetch" || cmd === "spadefetch") {
 				const active = (osInstance && osInstance.windows) ? osInstance.windows.length : 1;
 				historyLines.push({
 					type: "success",
 					text: [
-						"   ____  ____   _    ____  _____ ___  ____  ",
-						"  / ___||  _ \\ / \\  |  _ \\| ____/ _ \\/ ___| ",
-						"  \\___ \\| |_) / _ \\ | | | |  _|| | | \\___ \\ ",
-						"   ___) |  __/ ___ \\| |_| | |__| |_| |___) |",
-						"  |____/|_| /_/   \\_\\____/|_____\\___/|____/ ",
-						"  OS: SpadeOS (v0.9.1)",
+						"  __     _______ ___ _     ___  ____  ",
+						"  \\ \\   / / ____|_ _| |   / _ \\/ ___| ",
+						"   \\ \\ / /|  _|  | || |  | | | \\___ \\ ",
+						"    \\ V / | |___ | || |__| |_| |___) |",
+						"     \\_/  |_____|___|_____\\___/|____/ ",
+						"  OS: VeilOS (v0.9.1)",
 						"  Host: WebAssembly & Scramjet Controller Core",
 						"  Kernel: Linux x86_64 Sandboxed",
 						"  Uptime: Active Web Session",
@@ -357,7 +357,7 @@
 					const realId = appAliases[target];
 					if (realId && osInstance) {
 						osInstance.openApp(realId);
-						historyLines.push({ type: "success", text: `[SpadeOS] Launched ${realId}` });
+						historyLines.push({ type: "success", text: `[VeilOS] Launched ${realId}` });
 					} else {
 						historyLines.push({ type: "error", text: `Unknown app: '${target}'. Type 'help' for options.` });
 					}
@@ -386,7 +386,7 @@
 			} else if (cmd === "date") {
 				historyLines.push({ type: "sys", text: new Date().toString() });
 			} else if (cmd === "whoami") {
-				historyLines.push({ type: "success", text: "spade-user (admin - wheel, audio, video, scramjet)" });
+				historyLines.push({ type: "success", text: "veil-user (admin - wheel, audio, video, scramjet)" });
 			} else if (cmd === "clear") {
 				historyLines.length = 0;
 			} else if (cmd === "echo") {
@@ -444,8 +444,7 @@
 			{ name: "Helium Vault.app", type: "app", appId: "vault", icon: "fa-solid fa-vault", color: "text-cyan-400", size: "6.4 MB" },
 			{ name: "Cloud Gaming.app", type: "app", appId: "cloudgaming", icon: "fa-solid fa-cloud", color: "text-teal-400", size: "2.1 MB" },
 			{ name: "Task Manager.app", type: "app", appId: "activity", icon: "fa-solid fa-chart-line", color: "text-rose-400", size: "1.4 MB" },
-			{ name: "Spade Terminal.app", type: "app", appId: "terminal", icon: "fa-solid fa-terminal", color: "text-emerald-400", size: "1.2 MB" },
-			{ name: "Ampler Launcher.app", type: "app", appId: "ampler", icon: "fa-solid fa-cube", color: "text-amber-400", size: "3.2 MB" },
+			{ name: "Veil Terminal.app", type: "app", appId: "terminal", icon: "fa-solid fa-terminal", color: "text-emerald-400", size: "1.2 MB" },
 			{ name: "Changelog & Credits.app", type: "app", appId: "changelog", icon: "fa-solid fa-scroll", color: "text-indigo-400", size: "850 KB" }
 		];
 
@@ -462,7 +461,7 @@
 				<div class="h-11 bg-[#111118]/90 border-b border-white/10 flex items-center justify-between px-4 shrink-0">
 					<div class="flex items-center gap-2 text-neutral-300 text-xs font-semibold">
 						<i class="fa-solid fa-hard-drive text-indigo-400"></i>
-						<span>SpadeOS Virtual Storage</span>
+						<span>VeilOS Virtual Storage</span>
 						<span class="text-neutral-600">/</span>
 						<span class="text-white">Applications</span>
 					</div>
@@ -555,17 +554,17 @@
 			versions: [
 				{
 					version: "V0.9.1",
-					title: "Midnight Obsidian & Floral Theme",
-					tag: "Clean Theme",
+					title: "VeilOS Rebrand & Proxied Apps",
+					tag: "VeilOS",
 					tagClass: "bg-sky-500/20 text-sky-300 border-sky-500/30",
-					desc: "Restored the clean Midnight Obsidian & Midnight Floral SpadeOS aesthetic with crisp indigo and sky accents."
+					desc: "Rebranded the web operating system back to VeilOS, proxied Scenario AI and Sonora through Scramjet, and streamlined the application suite."
 				},
 				{
 					version: "V0.9.0",
-					title: "Rename VeilOS to SpadeOS",
-					tag: "SpadeOS Rebrand",
+					title: "Midnight Obsidian & Floral Theme",
+					tag: "Clean Theme",
 					tagClass: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
-					desc: "Rebranded the web operating system to SpadeOS with a custom brushed titanium Spade emblem, dark obsidian glass surfaces, indigo & sky accents, and spadefetch terminal support."
+					desc: "Restored the clean Midnight Obsidian & Midnight Floral aesthetic with dark glass surfaces, indigo & sky accents, and veilfetch terminal support."
 				}
 			]
 		},
@@ -733,7 +732,7 @@
 					title: "Login Icon change",
 					tag: "Lockscreen",
 					tagClass: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-					desc: "Polished user avatar styling on the SpadeOS lock and login prompt."
+					desc: "Polished user avatar styling on the VeilOS lock and login prompt."
 				},
 				{
 					version: "V0.5.3",
@@ -1201,7 +1200,7 @@
 				{
 					name: "viktorius",
 					role: "Branding Heritage",
-					detail: "Original naming heritage behind SpadeOS.",
+					detail: "Original naming heritage behind VeilOS.",
 					icon: "fa-solid fa-signature text-amber-400",
 					badge: "Heritage"
 				},
@@ -1296,7 +1295,7 @@
 						</div>
 						<div class="flex flex-col">
 							<div class="flex items-center gap-2">
-								<span class="text-sm font-bold text-white tracking-tight">SpadeOS Changelog & Credits</span>
+								<span class="text-sm font-bold text-white tracking-tight">VeilOS Changelog & Credits</span>
 								<span class="px-2 py-0.5 rounded-full text-[10px] font-mono tabular-nums font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
 									v0.9.1
 								</span>
@@ -1382,8 +1381,8 @@
 								<div class="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-2xl text-amber-400 shadow-md">
 									<i class="fa-solid fa-crown"></i>
 								</div>
-								<h2 class="text-lg font-bold text-white tracking-wider uppercase">SpadeOS Credits & Attributions</h2>
-								<p class="text-xs text-neutral-300 max-w-lg leading-relaxed">Recognizing the developers, open-source maintainers, and foundational technologies that power the SpadeOS ecosystem.</p>
+								<h2 class="text-lg font-bold text-white tracking-wider uppercase">VeilOS Credits & Attributions</h2>
+								<p class="text-xs text-neutral-300 max-w-lg leading-relaxed">Recognizing the developers, open-source maintainers, and foundational technologies that power the VeilOS ecosystem.</p>
 							</div>
 
 							${CREDITS_DATA.map(sec => `
@@ -1417,10 +1416,18 @@
 					` : `
 						<div class="max-w-2xl mx-auto space-y-4">
 							<div class="p-6 rounded-3xl bg-[#111118]/90 border border-white/10 shadow-2xl flex flex-col items-center text-center gap-3">
-								<div class="w-16 h-16 rounded-2xl overflow-hidden border border-indigo-400/40 shadow-xl">
-									<img src="assets/spadeos-emblem.jpg" alt="SpadeOS" class="w-full h-full object-cover" referrerpolicy="no-referrer" />
+								<div class="w-16 h-16 rounded-2xl overflow-hidden border border-indigo-400/40 shadow-xl bg-[#09090b] flex items-center justify-center">
+									<svg viewBox="0 0 64 64" class="w-11 h-11" aria-label="VeilOS">
+										<defs>
+											<linearGradient id="veilAboutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+												<stop offset="0%" stop-color="#6366f1"/>
+												<stop offset="100%" stop-color="#38bdf8"/>
+											</linearGradient>
+										</defs>
+										<path d="M12 14L32 52L52 14H41.5L32 33.5L22.5 14H12Z" fill="url(#veilAboutGrad)"/>
+									</svg>
 								</div>
-								<h2 class="text-2xl font-bold text-white uppercase tracking-wider">SpadeOS</h2>
+								<h2 class="text-2xl font-bold text-white uppercase tracking-wider">VeilOS</h2>
 								<p class="text-xs text-neutral-300 max-w-md leading-relaxed">
 									A modern web desktop operating system featuring an in-OS tabbed web browser, high-speed web engine, media vaults, games arcade, and Google disguise &amp; cloaking.
 								</p>
@@ -1433,7 +1440,7 @@
 							<div class="p-5 rounded-3xl bg-black/40 border border-white/10 divide-y divide-white/5 text-xs">
 								<div class="py-2.5 flex items-center justify-between">
 									<span class="text-neutral-400">Operating System</span>
-									<span class="font-semibold text-white">SpadeOS</span>
+									<span class="font-semibold text-white">VeilOS</span>
 								</div>
 								<div class="py-2.5 flex items-center justify-between">
 									<span class="text-neutral-400">Current Build</span>
@@ -1449,11 +1456,11 @@
 								</div>
 								<div class="py-2.5 flex items-center justify-between">
 									<span class="text-neutral-400">Transport Layer</span>
-									<span class="font-mono text-emerald-400">/epoxy/index.mjs &bull; Wisp WebSocket</span>
+									<span class="font-mono text-emerald-400">/libcurl/index.mjs &bull; Wisp WebSocket</span>
 								</div>
 								<div class="py-2.5 flex items-center justify-between">
 									<span class="text-neutral-400">Tab Cloaking</span>
-									<span class="font-semibold text-amber-400">SpadeOS, Google, Classroom, Drive, Canvas, Desmos, Custom</span>
+									<span class="font-semibold text-amber-400">VeilOS, Google, Classroom, Drive, Canvas, Desmos, Custom</span>
 								</div>
 								<div class="py-2.5 flex items-center justify-between">
 									<span class="text-neutral-400">Stealth Modes</span>

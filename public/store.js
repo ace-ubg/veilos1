@@ -7,14 +7,16 @@ const defaultBookmarks = [
 	{ id: "bm6", name: "Discord", url: "https://discord.com", icon: "🎙️", addedAt: Date.now() }
 ];
 
-const SPADE_VERSION = "v0.9.1";
+const VEIL_VERSION = "v0.9.1";
+const VEIL_ICON_DATA_URL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='100%25' stop-color='%2338bdf8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%2309090b'/%3E%3Cpath d='M16 18L32 48L48 18H39.5L32 33.5L24.5 18H16Z' fill='url(%23g)'/%3E%3C/svg%3E";
 if (typeof window !== "undefined") {
-	window.SPADE_VERSION = SPADE_VERSION;
-	window.VEIL_VERSION = SPADE_VERSION;
+	window.VEIL_VERSION = VEIL_VERSION;
+	window.SPADE_VERSION = VEIL_VERSION;
+	window.VEIL_ICON_DATA_URL = VEIL_ICON_DATA_URL;
 }
 
 const TAB_CLOAK_PRESETS = [
-	{ id: "spade", name: "SpadeOS (Default)", title: "SpadeOS", icon: "assets/spadeos-emblem.jpg" },
+	{ id: "veil", name: "VeilOS (Default)", title: "VeilOS", icon: VEIL_ICON_DATA_URL },
 	{ id: "google", name: "Google", title: "Google", icon: "https://www.google.com/favicon.ico" },
 	{ id: "classroom", name: "Google Classroom", title: "Classes", icon: "https://ssl.gstatic.com/classroom/favicon.png" },
 	{ id: "drive", name: "Google Drive", title: "My Drive - Google Drive", icon: "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" },
@@ -47,7 +49,7 @@ const defaultBare = (typeof _CONFIG !== "undefined" && _CONFIG && _CONFIG.bareur
 	getLocalBare();
 
 const defaultNotes = [
-	{ id: "note_1", title: "Welcome to SpadeOS", content: "# SpadeOS\n\nWelcome to your web desktop environment.\n\nFeatures:\n- Multi-window desktop manager with SpadeOS Snap\n- Onyx Web Browser with multi-tab workspace\n- Tab Cloaking & disguise presets (Google, Classroom, Drive, Docs, Canvas, Desmos, etc.)\n- Blob & About:blank Stealth\n- Integrated Search (Google, DuckDuckGo, Bing, Brave)\n- Games, Movies, Vault, Music, AI & Chat", updatedAt: Date.now() }
+	{ id: "note_1", title: "Welcome to VeilOS", content: "# VeilOS\n\nWelcome to your web desktop environment.\n\nFeatures:\n- Multi-window desktop manager with VeilOS Snap\n- Onyx Web Browser with multi-tab workspace\n- Tab Cloaking & disguise presets (Google, Classroom, Drive, Docs, Canvas, Desmos, etc.)\n- Blob & About:blank Stealth\n- Integrated Search (Google, DuckDuckGo, Bing, Brave)\n- Games, Movies, Vault, Music, AI & Chat", updatedAt: Date.now() }
 ];
 
 try {
@@ -64,13 +66,13 @@ try {
 				isValid = false;
 			}
 			if (!isValid) {
-				console.warn("[SpadeOS Store] Found corrupted or incompatible settings in localStorage, resetting key.");
+				console.warn("[VeilOS Store] Found corrupted or incompatible settings in localStorage, resetting key.");
 				localStorage.removeItem("settings");
 			}
 		}
 	}
 } catch (e) {
-	console.warn("[SpadeOS Store] Could not access localStorage:", e);
+	console.warn("[VeilOS Store] Could not access localStorage:", e);
 }
 
 const initialSettings = {
@@ -78,9 +80,9 @@ const initialSettings = {
 	wispurl: defaultWisp,
 	bareurl: defaultBare,
 	proxy: "",
-	transport: "/epoxy/index.mjs",
+	transport: "/libcurl/index.mjs",
 	searchEngine: "google",
-	tabCloak: "spade",
+	tabCloak: "veil",
 	customCloakTitle: "",
 	customCloakIcon: "",
 	autoAboutBlank: false,
@@ -93,7 +95,7 @@ const initialSettings = {
 	wallpaper: "assets/background.jpg",
 	accentColor: "indigo",
 	notes: defaultNotes,
-	osUsername: "Spade User",
+	osUsername: "Veil User",
 	dockPosition: "bottom",
 	soundEffects: true,
 	desktopWidgets: true
@@ -109,7 +111,7 @@ try {
 		store = initialSettings;
 	}
 } catch (storeErr) {
-	console.error("[SpadeOS Store] Error during $store initialization, clearing storage and falling back:", storeErr);
+	console.error("[VeilOS Store] Error during $store initialization, clearing storage and falling back:", storeErr);
 	try {
 		if (typeof localStorage !== "undefined") {
 			localStorage.removeItem("settings");
@@ -125,7 +127,7 @@ try {
 			store = initialSettings;
 		}
 	} catch (retryErr) {
-		console.error("[SpadeOS Store] Retry failed, using reactive or plain fallback:", retryErr);
+		console.error("[VeilOS Store] Retry failed, using reactive or plain fallback:", retryErr);
 		store = (typeof $state === "function") ? $state(initialSettings) : initialSettings;
 	}
 }
@@ -140,8 +142,8 @@ if (!store.bareurl) {
 if (!store.searchEngine) {
 	store.searchEngine = "google";
 }
-if (!store.tabCloak || store.tabCloak === "default") {
-	store.tabCloak = "spade";
+if (!store.tabCloak || store.tabCloak === "default" || store.tabCloak === "spade") {
+	store.tabCloak = "veil";
 }
 if (store.autoAboutBlank === undefined) {
 	store.autoAboutBlank = false;
@@ -152,20 +154,40 @@ if (!store.bookmarks || !Array.isArray(store.bookmarks) || store.bookmarks.lengt
 }
 
 try {
-	const migrated = localStorage.getItem("spade_clean_migrated_v1");
+	const migrated = localStorage.getItem("veil_rebrand_v1");
 	if (!migrated) {
 		store.theme = "default";
 		store.wallpaper = "assets/background.jpg";
 		store.accentColor = "indigo";
-		if (!store.osUsername || store.osUsername === "Veil User") {
-			store.osUsername = "Spade User";
+		if (!store.osUsername || store.osUsername === "Spade User") {
+			store.osUsername = "Veil User";
 		}
-		if (!store.tabCloak || store.tabCloak === "google") {
-			store.tabCloak = "spade";
+		if (!store.tabCloak || store.tabCloak === "spade" || store.tabCloak === "default" || store.tabCloak === "google") {
+			store.tabCloak = "veil";
 		}
-		localStorage.setItem("spade_clean_migrated_v1", "true");
+		if (Array.isArray(store.notes)) {
+			store.notes = store.notes.map((n) =>
+				n && n.id === "note_1" && (n.title === "Welcome to SpadeOS" || n.title === "Welcome to VeilOS")
+					? { ...n, title: "Welcome to VeilOS", content: defaultNotes[0].content }
+					: n
+			);
+		}
+		localStorage.setItem("veil_rebrand_v1", "true");
 	}
 } catch (e) {}
+
+try {
+	const libcurlMigrated = localStorage.getItem("spade_libcurl_default_v1");
+	if (!libcurlMigrated) {
+		if (!store.transport || store.transport === "/epoxy/index.mjs") {
+			store.transport = "/libcurl/index.mjs";
+		}
+		localStorage.setItem("spade_libcurl_default_v1", "true");
+	}
+} catch (e) {}
+if (!store.transport) {
+	store.transport = "/libcurl/index.mjs";
+}
 
 if (!store.theme || store.theme === "vice" || store.theme === "leonida" || store.theme === "halloween" || store.theme === "christmas" || store.theme === "jolly" || store.theme === "spooky") {
 	store.theme = "default";
@@ -186,13 +208,14 @@ try {
 
 // Global Tab Cloak Helper
 function applyTabCloak(presetId, customTitle, customIcon) {
-	const presetKey = presetId || store.tabCloak || "spade";
-	let title = "SpadeOS";
-	let icon = "assets/spadeos-emblem.jpg";
+	const rawPreset = presetId || store.tabCloak || "veil";
+	const presetKey = (rawPreset === "spade" || rawPreset === "default") ? "veil" : rawPreset;
+	let title = "VeilOS";
+	let icon = VEIL_ICON_DATA_URL;
 
 	if (presetKey === "custom") {
-		title = customTitle !== undefined ? customTitle : (store.customCloakTitle || "SpadeOS");
-		icon = customIcon !== undefined ? customIcon : (store.customCloakIcon || "assets/spadeos-emblem.jpg");
+		title = customTitle !== undefined ? customTitle : (store.customCloakTitle || "VeilOS");
+		icon = customIcon !== undefined ? customIcon : (store.customCloakIcon || VEIL_ICON_DATA_URL);
 	} else {
 		const found = TAB_CLOAK_PRESETS.find(p => p.id === presetKey);
 		if (found) {
@@ -202,14 +225,14 @@ function applyTabCloak(presetId, customTitle, customIcon) {
 	}
 
 	if (typeof document !== "undefined") {
-		document.title = title || "SpadeOS";
+		document.title = title || "VeilOS";
 		let link = document.querySelector("link[rel*='icon']");
 		if (!link) {
 			link = document.createElement("link");
 			link.rel = "icon";
 			document.head.appendChild(link);
 		}
-		link.href = icon || "assets/spadeos-emblem.jpg";
+		link.href = icon || VEIL_ICON_DATA_URL;
 	}
 	return { title, icon };
 }
@@ -243,7 +266,7 @@ function openAboutBlankCloak(targetUrl) {
 	</style>
 </head>
 <body>
-	<iframe name="spade_cloaked_frame" src="${frameUrl}" allow="fullscreen; autoplay; encrypted-media; camera; microphone; clipboard-read; clipboard-write; display-capture; geolocation"></iframe>
+	<iframe name="veil_cloaked_frame" src="${frameUrl}" allow="fullscreen; autoplay; encrypted-media; camera; microphone; clipboard-read; clipboard-write; display-capture; geolocation"></iframe>
 </body>
 </html>`);
 		doc.close();
@@ -275,7 +298,7 @@ function openBlobCloak(targetUrl) {
 	</style>
 </head>
 <body>
-	<iframe name="spade_cloaked_frame" src="${frameUrl}" allow="fullscreen; autoplay; encrypted-media; camera; microphone; clipboard-read; clipboard-write; display-capture; geolocation"></iframe>
+	<iframe name="veil_cloaked_frame" src="${frameUrl}" allow="fullscreen; autoplay; encrypted-media; camera; microphone; clipboard-read; clipboard-write; display-capture; geolocation"></iframe>
 </body>
 </html>`;
 

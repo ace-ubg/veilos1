@@ -2,7 +2,7 @@
 	"name": "veilos",
 	"version": "2.0.0-alpha",
 	"private": true,
-	"description": "Veil OS / SpadeOS: a web desktop environment built on Scramjet",
+	"description": "VeilOS: a web desktop environment built on Scramjet",
 	"type": "module",
 	"repository": {
 		"type": "git",

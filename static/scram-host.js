@@ -1,5 +1,5 @@
 /**
- * ScramjetHost: boots the Scramjet 2.x controller for the SpadeOS pages.
+ * ScramjetHost: boots the Scramjet 2.x controller for the VeilOS pages.
  *
  * Requires these scripts to have run first (see scripts/check-assets.mjs):
  *   /scramjet/scramjet.js          -> self.$scramjet            (core + wasm rewriter)
@@ -22,9 +22,9 @@
 
 	function normalizeTransportKind(value) {
 		const v = String(value || "").toLowerCase();
-		if (v.includes("libcurl")) return "libcurl";
-		// "epoxy", and the removed Bare 3 option (/baremod/...), both resolve to epoxy.
-		return "epoxy";
+		if (v.includes("epoxy")) return "epoxy";
+		// Default to libcurl; explicit "epoxy" keeps epoxy.
+		return "libcurl";
 	}
 
 	function pickWisp(value) {
@@ -137,19 +137,31 @@
 			let kind = normalizeTransportKind(opts.transport);
 			let wisp = pickWisp(opts.wisp);
 
-			const controller = new ctl.Controller({
-				serviceworker,
-				transport: makeTransport(kind, wisp),
-				scramjetConfig: {
-					flags: {
-						rewriterLogs: false,
-						scramitize: false,
-						cleanErrors: true,
-						sourcemaps: true,
+			const createController = (transportKind) =>
+				new ctl.Controller({
+					serviceworker,
+					transport: makeTransport(transportKind, wisp),
+					scramjetConfig: {
+						flags: {
+							rewriterLogs: false,
+							scramitize: false,
+							cleanErrors: true,
+							sourcemaps: true,
+						},
 					},
-				},
-			});
-			await controller.wait();
+				});
+
+			let controller;
+			try {
+				controller = createController(kind);
+				await controller.wait();
+			} catch (err) {
+				const fallbackKind = kind === "libcurl" ? "epoxy" : "libcurl";
+				console.warn(`[ScramjetHost] Failed to initialize ${kind}, falling back to ${fallbackKind}:`, err);
+				kind = fallbackKind;
+				controller = createController(kind);
+				await controller.wait();
+			}
 
 			let encoderFrame = null;
 
