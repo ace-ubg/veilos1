@@ -737,13 +737,239 @@ window.addEventListener("load", async () => {
 		return;
 	}
 
-	if (window.sapphire && typeof window.sapphire.attachController === "function") {
-		window.sapphire.attachController(scramjet.controller);
-	}
+	let globalNextTabNumericId = 1;
+	let globalNextWindowNumericId = 1;
+	let sapphireInitPromise = null;
 
-	window.ensureSapphire = async function () {
+	const getOnyxBrowserWindows = () => {
+		const inst = window.osGlobalInstance;
+		if (!inst || !Array.isArray(inst.windows)) return [];
+		return inst.windows.filter((w) => w && w.customState && Array.isArray(w.customState.tabs));
+	};
+
+	const findOnyxTabById = (tabId) => {
+		for (const w of getOnyxBrowserWindows()) {
+			const tabs = w.customState.tabs;
+			const idx = tabs.findIndex((t) => t.numericId === tabId);
+			if (idx !== -1) {
+				return { win: w, tab: tabs[idx], index: idx };
+			}
+		}
 		return null;
 	};
+
+	const findOnyxTabByWindow = (targetWin) => {
+		if (!targetWin) return null;
+		for (const w of getOnyxBrowserWindows()) {
+			const tabs = w.customState.tabs;
+			for (let i = 0; i < tabs.length; i++) {
+				const t = tabs[i];
+				const iframeWin = t.frameObj?.frame?.contentWindow;
+				if (!iframeWin) continue;
+				if (iframeWin === targetWin) return { win: w, tab: t, index: i };
+				try {
+					if (targetWin.top === iframeWin) return { win: w, tab: t, index: i };
+				} catch (_) {}
+				try {
+					let cur = targetWin;
+					for (let depth = 0; depth < 10 && cur && cur.parent && cur.parent !== cur; depth++) {
+						if (cur.parent === iframeWin) return { win: w, tab: t, index: i };
+						cur = cur.parent;
+					}
+				} catch (_) {}
+			}
+		}
+		return null;
+	};
+
+	const getActiveOnyxBrowserWindow = () => {
+		const inst = window.osGlobalInstance;
+		const bWins = getOnyxBrowserWindows();
+		if (!bWins.length) return null;
+		if (inst && inst.activeWinId) {
+			const active = bWins.find((w) => w.id === inst.activeWinId);
+			if (active) return active;
+		}
+		return bWins[bWins.length - 1];
+	};
+
+	const toSapphireTabInfo = (w, t, idx) => {
+		const windowNumericId = w.customState?.windowNumericId || 1;
+		const inst = window.osGlobalInstance;
+		const isActiveWin = !inst?.activeWinId || inst.activeWinId === w.id;
+		const isActiveTab = isActiveWin && w.customState?.activeTabId === t.id;
+		return {
+			id: t.numericId,
+			windowId: windowNumericId,
+			url: t.url || "onyx://newtab",
+			title: t.title || "New Tab",
+			active: Boolean(isActiveTab),
+			index: idx,
+		};
+	};
+
+	window.ensureSapphire = function () {
+		if (window.sapphire) {
+			if (scramjet && scramjet.controller && typeof window.sapphire.attachController === "function") {
+				window.sapphire.attachController(scramjet.controller);
+			}
+			return Promise.resolve(window.sapphire);
+		}
+		if (sapphireInitPromise) {
+			return sapphireInitPromise;
+		}
+
+		sapphireInitPromise = (async () => {
+			if (typeof window.Sapphire !== "function") {
+				throw new Error("Sapphire class is not available. Ensure /host/host.js is loaded.");
+			}
+
+			const adapter = {
+				ensureController: () => {
+					if (window.sapphire && scramjet && scramjet.controller && typeof window.sapphire.attachController === "function") {
+						window.sapphire.attachController(scramjet.controller);
+					}
+				},
+				getTabId: (win) => {
+					const found = findOnyxTabByWindow(win);
+					return found ? found.tab.numericId : null;
+				},
+				getTab: (tabId) => {
+					const found = findOnyxTabById(tabId);
+					return found ? toSapphireTabInfo(found.win, found.tab, found.index) : null;
+				},
+				getAllTabs: () => {
+					const all = [];
+					for (const w of getOnyxBrowserWindows()) {
+						w.customState.tabs.forEach((t, i) => {
+							all.push(toSapphireTabInfo(w, t, i));
+						});
+					}
+					return all;
+				},
+				getActiveTabId: () => {
+					const w = getActiveOnyxBrowserWindow();
+					if (!w) return null;
+					const active = w.customState.tabs.find((t) => t.id === w.customState.activeTabId) || w.customState.tabs[0];
+					return active ? active.numericId : null;
+				},
+				getTabWindow: (tabId) => {
+					const found = findOnyxTabById(tabId);
+					try {
+						return found?.tab.frameObj?.frame?.contentWindow || null;
+					} catch (_) {
+						return null;
+					}
+				},
+				navigateTab: (tabId, url) => {
+					if (tabId === null || tabId === undefined) {
+						adapter.createTab(url, { active: true });
+						return;
+					}
+					const found = findOnyxTabById(tabId);
+					if (found && found.win.customState && typeof found.win.customState.loadTabUrl === "function") {
+						found.win.customState.loadTabUrl(found.tab, url);
+					}
+				},
+				createTab: (url, options = {}) => {
+					const targetUrl = url || "onyx://newtab";
+					const w = getActiveOnyxBrowserWindow();
+					if (w && w.customState && typeof w.customState.createTab === "function") {
+						const tabObj = w.customState.createTab(targetUrl);
+						w.customState.tabs.push(tabObj);
+						if (options.active !== false && typeof w.customState.switchTab === "function") {
+							w.customState.switchTab(tabObj.id);
+						} else if (typeof w.customState.renderTabStrip === "function") {
+							w.customState.renderTabStrip();
+						}
+						return tabObj.numericId;
+					}
+					const inst = window.osGlobalInstance;
+					if (inst && typeof inst.openApp === "function") {
+						inst.openApp("browser", { url: targetUrl });
+						const bWin = getActiveOnyxBrowserWindow();
+						const openedTab = bWin?.customState?.tabs?.[bWin.customState.tabs.length - 1];
+						return openedTab ? openedTab.numericId : null;
+					}
+					return null;
+				},
+				closeTab: (tabId) => {
+					const found = findOnyxTabById(tabId);
+					if (found && found.win.customState && typeof found.win.customState.closeTab === "function") {
+						found.win.customState.closeTab(found.tab.id);
+					}
+				},
+				reloadTab: (tabId) => {
+					const found = findOnyxTabById(tabId);
+					if (found?.tab?.frameObj?.reload) {
+						found.tab.frameObj.reload();
+					}
+				},
+				activateTab: (tabId) => {
+					const found = findOnyxTabById(tabId);
+					if (!found) return;
+					if (window.osGlobalInstance && typeof window.osGlobalInstance.focusWindow === "function") {
+						window.osGlobalInstance.focusWindow(found.win.id);
+					}
+					if (found.win.customState && typeof found.win.customState.switchTab === "function") {
+						found.win.customState.switchTab(found.tab.id);
+					}
+				},
+				goBack: (tabId) => {
+					const found = findOnyxTabById(tabId);
+					if (found?.tab?.frameObj?.back) {
+						found.tab.frameObj.back();
+					}
+				},
+				goForward: (tabId) => {
+					const found = findOnyxTabById(tabId);
+					if (found?.tab?.frameObj?.forward) {
+						found.tab.frameObj.forward();
+					}
+				},
+				openPopup: (extId, tabId) => {
+					const found = tabId !== null && tabId !== undefined ? findOnyxTabById(tabId) : null;
+					const w = found ? found.win : getActiveOnyxBrowserWindow();
+					if (w && w.customState && typeof w.customState.showExtensionPopover === "function") {
+						w.customState.showExtensionPopover(extId);
+						return true;
+					}
+					return false;
+				},
+				closePopup: (extId) => {
+					for (const w of getOnyxBrowserWindows()) {
+						if (w.customState && typeof w.customState.hidePopover === "function") {
+							if (!extId || w.customState.activePopupExtId === extId) {
+								w.customState.hidePopover();
+							}
+						}
+					}
+				},
+				showNotification: (title, message) => {
+					if (window.osGlobalInstance && typeof window.osGlobalInstance.notify === "function") {
+						window.osGlobalInstance.notify(title || "Extension", message || "", "fa-solid fa-puzzle-piece", "info");
+					}
+				},
+			};
+
+			const sapphire = new window.Sapphire({ host: adapter });
+			await sapphire.init();
+			if (scramjet && scramjet.controller && typeof sapphire.attachController === "function") {
+				sapphire.attachController(scramjet.controller);
+			}
+			window.sapphire = sapphire;
+			return sapphire;
+		})().catch((err) => {
+			sapphireInitPromise = null;
+			console.error("[Sapphire] Failed to initialize extension engine:", err);
+			throw err;
+		});
+
+		return sapphireInitPromise;
+	};
+
+	// Initialize Sapphire in the background after Scramjet boots so lock screen rendering is never blocked.
+	void window.ensureSapphire().catch(() => {});
 
 	const LOCKSCREEN_QUOTES = [
 		{
@@ -1530,6 +1756,13 @@ window.addEventListener("load", async () => {
 			if (win) {
 				if (win.customState && win.customState.urlPollTimer) {
 					clearInterval(win.customState.urlPollTimer);
+				}
+				if (win.customState && typeof win.customState.__sapphireUnsub === "function") {
+					try { win.customState.__sapphireUnsub(); } catch (err) {}
+					win.customState.__sapphireUnsub = null;
+				}
+				if (win.customState && typeof win.customState.hidePopover === "function") {
+					try { win.customState.hidePopover(); } catch (err) {}
 				}
 				if (win.domEl) {
 					win.domEl.classList.add("animate-window-close");
@@ -2596,6 +2829,10 @@ window.addEventListener("load", async () => {
 			return win.customState.rootEl;
 		}
 
+		if (!win.customState.windowNumericId) {
+			win.customState.windowNumericId = globalNextWindowNumericId++;
+		}
+
 		const normalizeBrowserUrl = (rawUrl) => {
 			if (!rawUrl || typeof rawUrl !== "string") return rawUrl || "";
 			let str = rawUrl.trim();
@@ -2633,6 +2870,9 @@ window.addEventListener("load", async () => {
 				if (!decoded) break;
 				str = decoded;
 			}
+			if (window.sapphire && typeof window.sapphire.displayUrl === "function") {
+				str = window.sapphire.displayUrl(str);
+			}
 			return str;
 		};
 
@@ -2652,7 +2892,7 @@ window.addEventListener("load", async () => {
 				return "onyx://history";
 			}
 			if (lower === "onyx://extensions" || lower === "spade://extensions" || lower === "veil://extensions" || lower === "chrome://extensions" || lower === "about:extensions" || lower === "onyx:extensions" || lower === "spade:extensions" || lower === "veil:extensions" || lower === "chrome:extensions") {
-				return "onyx://newtab";
+				return "onyx://extensions";
 			}
 			if (lower === "onyx://settings" || lower === "spade://settings" || lower === "veil://settings" || lower === "chrome://settings" || lower === "about:settings" || lower === "onyx:settings" || lower === "spade:settings" || lower === "veil:settings" || lower === "chrome:settings") {
 				return "onyx://settings";
@@ -2664,15 +2904,14 @@ window.addEventListener("load", async () => {
 			if (clean.startsWith("onyx://") || clean.startsWith("spade://") || clean.startsWith("veil://")) {
 				return clean.replace(/^(veil|spade):\/\//i, "onyx://");
 			}
+			if (clean.startsWith("chrome-extension://") || clean.startsWith("moz-extension://")) {
+				return clean;
+			}
 			if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("about:") || clean.startsWith("data:") || clean.startsWith("blob:")) {
 				return clean;
 			}
 			if (clean.startsWith("/~/sx/")) {
 				return window.location.origin + clean;
-			}
-			if (clean.startsWith("chrome-extension://")) {
-				const extPart = clean.slice("chrome-extension://".length);
-				return window.location.origin + "/~/sx/" + extPart;
 			}
 			if (!clean.includes(".") || clean.includes(" ")) {
 				const engine = (store.searchEngine || "google").toLowerCase();
@@ -2772,11 +3011,17 @@ window.addEventListener("load", async () => {
 		const panelToggles = document.createElement("div");
 		panelToggles.className = "flex items-center gap-1 shrink-0 pb-1";
 
+		const extensionsToggleBtn = document.createElement("button");
+		extensionsToggleBtn.title = "Extensions (onyx://extensions)";
+		extensionsToggleBtn.className = "w-7 h-7 rounded-lg text-xs font-medium transition-colors flex items-center justify-center cursor-pointer bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white";
+		extensionsToggleBtn.innerHTML = '<i class="fa-solid fa-puzzle-piece text-emerald-400"></i>';
+
 		const historyToggleBtn = document.createElement("button");
 		historyToggleBtn.title = "History (onyx://history)";
 		historyToggleBtn.className = "w-7 h-7 rounded-lg text-xs font-medium transition-colors flex items-center justify-center cursor-pointer bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white";
 		historyToggleBtn.innerHTML = '<i class="fa-solid fa-clock-rotate-left text-purple-400"></i>';
 
+		panelToggles.appendChild(extensionsToggleBtn);
 		panelToggles.appendChild(historyToggleBtn);
 		tabStrip.appendChild(tabsListContainer);
 		tabStrip.appendChild(panelToggles);
@@ -2828,9 +3073,151 @@ window.addEventListener("load", async () => {
 		goBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i>';
 		goBtn.title = "Go to URL";
 
-		win.customState.renderExtensionPopup = () => {};
-		win.customState.showExtensionPopover = () => {};
-		win.customState.renderToolbarExtensions = () => {};
+		const extToolbar = document.createElement("div");
+		extToolbar.className = "flex items-center gap-1 shrink-0";
+
+		const floatingPopover = document.createElement("div");
+		floatingPopover.className = "hidden absolute top-2 right-2 z-50 w-[380px] h-[520px] max-w-[92%] max-h-[92%] bg-[#111118] border border-white/15 rounded-2xl shadow-2xl overflow-hidden flex flex-col";
+
+		const unmountActivePopup = () => {
+			const prevIframe = floatingPopover.querySelector("iframe[data-sapphire-popup='1']");
+			if (prevIframe && window.sapphire && typeof window.sapphire.unmountExtensionPopup === "function") {
+				try { window.sapphire.unmountExtensionPopup(prevIframe); } catch (_) {}
+			}
+			floatingPopover.innerHTML = "";
+		};
+
+		const hideExtensionPopover = () => {
+			unmountActivePopup();
+			floatingPopover.classList.add("hidden");
+			win.customState.activePopup = null;
+			win.customState.activePopupExtId = null;
+		};
+
+		const showExtensionPopover = async (extId, fallbackPopupUrl) => {
+			if (!extId) return;
+			const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+			if (!sEngine) return;
+
+			if (win.customState.activePopupExtId === extId && !floatingPopover.classList.contains("hidden")) {
+				hideExtensionPopover();
+				return;
+			}
+
+			unmountActivePopup();
+			const activeTab = getActiveTab();
+			const tabId = activeTab ? activeTab.numericId : null;
+			const exts = typeof sEngine.getInstalledExtensions === "function" ? sEngine.getInstalledExtensions(tabId) : [];
+			const extInfo = exts.find((x) => x.id === extId);
+
+			const popHeader = document.createElement("div");
+			popHeader.className = "flex items-center justify-between px-3 py-2 bg-[#161622] border-b border-white/10 shrink-0";
+			const titleRow = document.createElement("div");
+			titleRow.className = "flex items-center gap-2 min-w-0";
+			titleRow.innerHTML = `
+				${extInfo?.iconUrl ? `<img src="${extInfo.iconUrl}" class="w-4 h-4 rounded object-contain shrink-0" />` : '<span class="text-xs">🧩</span>'}
+				<span class="text-xs font-bold text-white truncate">${escapeHtml(extInfo?.name || "Extension Popup")}</span>
+			`;
+			const popActions = document.createElement("div");
+			popActions.className = "flex items-center gap-1 shrink-0";
+
+			const closePopBtn = document.createElement("button");
+			closePopBtn.className = "w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white text-xs flex items-center justify-center cursor-pointer";
+			closePopBtn.textContent = "✕";
+			closePopBtn.title = "Close Popup";
+			closePopBtn.onclick = () => hideExtensionPopover();
+			popActions.appendChild(closePopBtn);
+
+			popHeader.appendChild(titleRow);
+			popHeader.appendChild(popActions);
+
+			const popupFrame = document.createElement("iframe");
+			popupFrame.dataset.sapphirePopup = "1";
+			popupFrame.className = "flex-1 w-full h-full border-0 bg-white";
+
+			floatingPopover.appendChild(popHeader);
+			floatingPopover.appendChild(popupFrame);
+			floatingPopover.classList.remove("hidden");
+			win.customState.activePopup = popupFrame;
+			win.customState.activePopupExtId = extId;
+
+			let mounted = false;
+			try {
+				if (typeof sEngine.mountExtensionPopup === "function") {
+					mounted = await sEngine.mountExtensionPopup(popupFrame, extId, tabId);
+				}
+			} catch (mountErr) {
+				console.warn("[ExtensionPopup] mountExtensionPopup failed:", mountErr);
+			}
+
+			if (!mounted) {
+				hideExtensionPopover();
+				const pageUrl = fallbackPopupUrl || extInfo?.popupUrl;
+				if (pageUrl) {
+					createNewTab(pageUrl);
+				}
+			}
+		};
+
+		const renderToolbarExtensions = () => {
+			extToolbar.innerHTML = "";
+			const sEngine = window.sapphire;
+			if (!sEngine) {
+				if (window.ensureSapphire && !win.customState.__waitingSapphireToolbar) {
+					win.customState.__waitingSapphireToolbar = true;
+					window.ensureSapphire()
+						.then(() => {
+							win.customState.__waitingSapphireToolbar = false;
+							renderToolbarExtensions();
+						})
+						.catch(() => {
+							win.customState.__waitingSapphireToolbar = false;
+						});
+				}
+				return;
+			}
+			const activeTab = getActiveTab();
+			const tabId = activeTab ? activeTab.numericId : null;
+			const exts = (typeof sEngine.getInstalledExtensions === "function" ? sEngine.getInstalledExtensions(tabId) : [])
+				.filter((ext) => ext.enabled);
+
+			exts.forEach((ext) => {
+				const btn = document.createElement("button");
+				btn.className = "relative w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-xs transition-all cursor-pointer shrink-0";
+				btn.title = ext.title || ext.name || "Extension";
+				if (ext.iconUrl) {
+					const img = document.createElement("img");
+					img.src = ext.iconUrl;
+					img.alt = ext.name || "Extension";
+					img.className = "w-4 h-4 rounded object-contain pointer-events-none";
+					btn.appendChild(img);
+				} else {
+					btn.innerHTML = '<i class="fa-solid fa-puzzle-piece text-emerald-400 text-[11px]"></i>';
+				}
+				if (ext.badgeText) {
+					const badge = document.createElement("span");
+					badge.className = "absolute -bottom-0.5 -right-0.5 px-1 rounded text-[8px] font-bold leading-tight text-white bg-indigo-600 pointer-events-none";
+					badge.textContent = ext.badgeText;
+					if (ext.badgeColor) badge.style.backgroundColor = ext.badgeColor;
+					if (ext.badgeTextColor) badge.style.color = ext.badgeTextColor;
+					btn.appendChild(badge);
+				}
+				btn.onclick = () => {
+					const curTab = getActiveTab();
+					const curTabId = curTab ? curTab.numericId : null;
+					if (typeof sEngine.clickAction === "function") {
+						sEngine.clickAction(ext.id, curTabId);
+					} else if (ext.hasPopup) {
+						showExtensionPopover(ext.id, ext.popupUrl);
+					}
+				};
+				extToolbar.appendChild(btn);
+			});
+		};
+
+		win.customState.renderExtensionPopup = showExtensionPopover;
+		win.customState.showExtensionPopover = showExtensionPopover;
+		win.customState.renderToolbarExtensions = renderToolbarExtensions;
 
 		urlBar.appendChild(backBtn);
 		urlBar.appendChild(fwdBtn);
@@ -2838,6 +3225,7 @@ window.addEventListener("load", async () => {
 		urlBar.appendChild(homeBtn);
 		urlBar.appendChild(urlInputBox);
 		urlBar.appendChild(goBtn);
+		urlBar.appendChild(extToolbar);
 
 		const quickBmBar = document.createElement("div");
 		quickBmBar.className = "flex items-center gap-1.5 px-3 py-1.5 bg-[#09090b] border-b border-white/10 overflow-x-auto text-xs shrink-0 custom-scrollbar";
@@ -2850,6 +3238,7 @@ window.addEventListener("load", async () => {
 
 		mainContent.appendChild(win.customState.viewportEl);
 		mainContent.appendChild(drawerContainer);
+		mainContent.appendChild(floatingPopover);
 
 		browserRoot.appendChild(tabStrip);
 		browserRoot.appendChild(urlBar);
@@ -2870,7 +3259,21 @@ window.addEventListener("load", async () => {
 			starBtn.title = isBm ? "Remove Bookmark" : "Bookmark this Page";
 		};
 
-		let nextTabNumericId = 1;
+		if (window.ensureSapphire && !win.customState.__sapphireUnsub) {
+			window.ensureSapphire()
+				.then((sEngine) => {
+					if (sEngine && typeof sEngine.onChange === "function" && !win.customState.__sapphireUnsub) {
+						win.customState.__sapphireUnsub = sEngine.onChange(() => {
+							renderToolbarExtensions();
+							if (win.customState.activePanel === "extensions") {
+								renderDrawer();
+							}
+						});
+					}
+					renderToolbarExtensions();
+				})
+				.catch(() => {});
+		}
 
 		const renderInternalPageView = (tabObj, targetUrl) => {
 			const container = tabObj.internalEl;
@@ -2975,6 +3378,7 @@ window.addEventListener("load", async () => {
 				quickNav.className = "flex flex-wrap items-center justify-center gap-2 pt-1";
 				const quickItems = [
 					{ name: "Onyx Chat", url: "onyx://chat", icon: "💬" },
+					{ name: "Extensions", url: "onyx://extensions", icon: "🧩" },
 					{ name: "Settings", url: "onyx://settings", icon: "⚙️" },
 					{ name: "Bookmarks", url: "onyx://bookmarks", icon: "⭐" },
 					{ name: "History", url: "onyx://history", icon: "🕒" }
@@ -3036,6 +3440,7 @@ window.addEventListener("load", async () => {
 			const internalTabs = [
 				{ id: "newtab", url: "onyx://newtab", label: "Home", icon: "🏠" },
 				{ id: "chat", url: "onyx://chat", label: "Chat", icon: "💬" },
+				{ id: "extensions", url: "onyx://extensions", label: "Extensions", icon: "🧩" },
 				{ id: "bookmarks", url: "onyx://bookmarks", label: "Bookmarks", icon: "⭐" },
 				{ id: "history", url: "onyx://history", label: "History", icon: "🕒" },
 				{ id: "settings", url: "onyx://settings", label: "Settings", icon: "⚙️" }
@@ -3332,6 +3737,15 @@ window.addEventListener("load", async () => {
 			}
 
 			else if (currentSection === "extensions") {
+				if (!window.sapphire && window.ensureSapphire) {
+					window.ensureSapphire()
+						.then(() => {
+							if ((tabObj.url || "").toLowerCase().startsWith("onyx://extensions")) {
+								renderInternalPageView(tabObj, targetUrl);
+							}
+						})
+						.catch(() => {});
+				}
 				const exts = window.sapphire ? window.sapphire.getInstalledExtensions() : [];
 				const activeTab = win.customState.extensionPageTab || "store";
 
@@ -3730,8 +4144,9 @@ window.addEventListener("load", async () => {
 						toggleInput.checked = Boolean(ext.enabled);
 						toggleInput.className = "sr-only peer";
 						toggleInput.onchange = async (e) => {
-							if (window.sapphire) {
-								await window.sapphire.setExtensionEnabled(ext.id, e.target.checked);
+							const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+							if (sEngine) {
+								await sEngine.setExtensionEnabled(ext.id, e.target.checked);
 								renderInternalPageView(tabObj, targetUrl);
 								if (typeof win.customState.renderToolbarExtensions === "function") {
 									win.customState.renderToolbarExtensions();
@@ -3760,25 +4175,20 @@ window.addEventListener("load", async () => {
 						const leftBtns = document.createElement("div");
 						leftBtns.className = "flex items-center gap-2";
 
-						if (ext.hasPopup && window.sapphire) {
+						if (ext.hasPopup) {
 							const popupBtn = document.createElement("button");
 							popupBtn.className = "px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer";
 							popupBtn.innerHTML = `<span>🪄</span><span>Popup</span>`;
 							popupBtn.onclick = async () => {
 								try {
-									let popupUrl = null;
-									if (typeof window.sapphire.getPopupUrl === "function") {
-										popupUrl = await window.sapphire.getPopupUrl(ext.id);
-									} else if (typeof window.sapphire.getExtensionPopupPage === "function") {
-										const page = window.sapphire.getExtensionPopupPage(ext.id);
-										if (page) popupUrl = `${window.location.origin}/~/sx/${ext.id}/${String(page).replace(/^\//, "")}`;
-									}
-									if (popupUrl) {
-										if (typeof win.customState.showExtensionPopover === "function") {
-											win.customState.showExtensionPopover(ext.id, popupUrl);
-										} else {
-											createNewTab(popupUrl);
-										}
+									const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+									if (!sEngine) return;
+									const page = typeof sEngine.getExtensionPopupPage === "function" ? sEngine.getExtensionPopupPage(ext.id) : null;
+									const popupUrl = ext.popupUrl || (page && typeof sEngine.extensionUrl === "function" ? sEngine.extensionUrl(ext.id, page) : null);
+									if (typeof win.customState.showExtensionPopover === "function") {
+										win.customState.showExtensionPopover(ext.id, popupUrl);
+									} else if (popupUrl) {
+										createNewTab(popupUrl);
 									}
 								} catch (e) {
 									console.error(e);
@@ -3792,10 +4202,13 @@ window.addEventListener("load", async () => {
 						delBtn.innerHTML = `<span>🗑️</span><span>Remove</span>`;
 						delBtn.onclick = async () => {
 							if (confirm(`Remove extension "${ext.name}"?`)) {
-								await window.sapphire.uninstallExtension(ext.id);
-								renderInternalPageView(tabObj, targetUrl);
-								if (typeof win.customState.renderToolbarExtensions === "function") {
-									win.customState.renderToolbarExtensions();
+								const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+								if (sEngine) {
+									await sEngine.uninstallExtension(ext.id);
+									renderInternalPageView(tabObj, targetUrl);
+									if (typeof win.customState.renderToolbarExtensions === "function") {
+										win.customState.renderToolbarExtensions();
+									}
 								}
 							}
 						};
@@ -4137,14 +4550,20 @@ window.addEventListener("load", async () => {
 				tabObj.frameObj.frame.style.position = "";
 			}
 
-			const isExtensionPage = target.includes("/~/sx/") || target.startsWith("chrome-extension://");
-			if (isExtensionPage && window.sapphire) {
+			const isExtensionPage = target.includes("/~/sx/") || target.startsWith("chrome-extension://") || target.startsWith("moz-extension://") || target.includes(".sapphire-extension.invalid");
+			if (isExtensionPage) {
 				let extId = null;
 				let pagePath = "popup.html";
-				if (target.startsWith("chrome-extension://")) {
-					const parts = target.slice("chrome-extension://".length).split("/");
+				if (target.startsWith("chrome-extension://") || target.startsWith("moz-extension://")) {
+					const parts = target.replace(/^(chrome|moz)-extension:\/\//, "").split("/");
 					extId = parts[0];
 					pagePath = parts.slice(1).join("/") || "popup.html";
+				} else if (target.includes(".sapphire-extension.invalid")) {
+					try {
+						const u = new URL(target);
+						extId = u.hostname.split(".")[0];
+						pagePath = u.pathname.replace(/^\/+/, "") || "popup.html";
+					} catch (_) {}
 				} else {
 					const match = target.match(/\/~\/sx\/([^/]+)(?:\/(.*))?/);
 					if (match) {
@@ -4152,33 +4571,28 @@ window.addEventListener("load", async () => {
 						pagePath = match[2] || "popup.html";
 					}
 				}
-				if (extId) {
-					const ext = window.sapphire.registry?.get ? window.sapphire.registry.get(extId) : null;
-					if (ext) {
-						tabObj.title = (ext.manifest?.name || "Extension") + (pagePath && pagePath !== "popup.html" ? ` - ${pagePath.replace('.html','')}` : " Page");
-					}
-					setTimeout(async () => {
-						try {
-							if (typeof window.sapphire.mountExtensionPage === "function") {
-								const ok = await window.sapphire.mountExtensionPage(tabObj.frameObj.frame, extId, pagePath, tabObj.numericId);
-								if (ok) return;
-							}
-							if (typeof window.sapphire.mountExtensionPopup === "function") {
-								const ok = await window.sapphire.mountExtensionPopup(tabObj.frameObj.frame, extId, tabObj.numericId);
-								if (ok) return;
-							}
-						} catch (mountErr) {
-							console.warn("[loadTabUrl] mountExtensionPage error, falling back to frame.go:", mountErr);
+				const displayTarget = normalizeBrowserUrl(target);
+				tabObj.attemptedUrl = displayTarget;
+				tabObj.url = displayTarget;
+				tabObj.title = getTitleFromUrl(displayTarget);
+				setTimeout(async () => {
+					const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+					if (sEngine && extId) {
+						const ext = sEngine.registry?.get ? sEngine.registry.get(extId) : null;
+						if (ext) {
+							tabObj.title = (ext.manifest?.name || "Extension") + (pagePath && pagePath !== "popup.html" ? ` - ${pagePath.replace(".html", "")}` : " Page");
+							renderTabStrip();
 						}
-						tabObj.frameObj.go(target);
-					}, 0);
-					addHistory(tabObj.title, target);
-					if (win.customState.activeTabId === tabObj.id) {
-						syncActiveTabUrl(target);
 					}
-					renderTabStrip();
-					return;
+					const resolved = sEngine && typeof sEngine.resolveUrl === "function" ? sEngine.resolveUrl(target) : target;
+					tabObj.frameObj.go(resolved);
+				}, 0);
+				addHistory(tabObj.title, displayTarget);
+				if (win.customState.activeTabId === tabObj.id) {
+					syncActiveTabUrl(displayTarget);
 				}
+				renderTabStrip();
+				return;
 			}
 
 			tabObj.frameObj.go(target);
@@ -4273,7 +4687,7 @@ window.addEventListener("load", async () => {
 		};
 
 		const createTab = (rawUrl, customTitle) => {
-			const tabNumericId = nextTabNumericId++;
+			const tabNumericId = globalNextTabNumericId++;
 			const target = formatUrl(rawUrl || "https://google.com");
 			const cleanInitial = normalizeBrowserUrl(target);
 
@@ -4284,6 +4698,8 @@ window.addEventListener("load", async () => {
 				} catch (e) {
 					console.warn("[createTab] Failed to instantiate SapphireContentScriptPlugin:", e);
 				}
+			} else if (window.ensureSapphire) {
+				void window.ensureSapphire().catch(() => {});
 			}
 
 			const frame = scramjet.createFrame(undefined, { plugins });
@@ -4367,6 +4783,11 @@ window.addEventListener("load", async () => {
 
 			win.customState.viewportEl.appendChild(tabEl);
 			loadTabUrl(tabObj, target);
+			setTimeout(() => {
+				if (window.sapphire && typeof window.sapphire.notifyTabCreated === "function") {
+					window.sapphire.notifyTabCreated(tabNumericId);
+				}
+			}, 0);
 			return tabObj;
 		};
 
@@ -4392,8 +4813,12 @@ window.addEventListener("load", async () => {
 			const activeTab = getActiveTab();
 			if (activeTab) {
 				syncActiveTabUrl(activeTab.url);
+				if (window.sapphire && typeof window.sapphire.notifyTabActivated === "function") {
+					window.sapphire.notifyTabActivated(activeTab.numericId, win.customState.windowNumericId || 1);
+				}
 			}
 			renderTabStrip();
+			renderToolbarExtensions();
 		};
 
 		const closeTab = (tabId, e) => {
@@ -4402,8 +4827,13 @@ window.addEventListener("load", async () => {
 				e.preventDefault();
 			}
 			const targetTab = win.customState.tabs.find(t => t.id === tabId);
-			if (targetTab && targetTab.tabEl) {
-				try { targetTab.tabEl.remove(); } catch (err) {}
+			if (targetTab) {
+				if (window.sapphire && typeof window.sapphire.notifyTabRemoved === "function") {
+					window.sapphire.notifyTabRemoved(targetTab.numericId, win.customState.windowNumericId || 1);
+				}
+				if (targetTab.tabEl) {
+					try { targetTab.tabEl.remove(); } catch (err) {}
+				}
 			}
 			win.customState.tabs = win.customState.tabs.filter(t => t.id !== tabId);
 			if (win.customState.tabs.length === 0) {
@@ -4434,15 +4864,11 @@ window.addEventListener("load", async () => {
 
 		win.customState.createNewTab = createNewTab;
 		win.customState.createTab = createTab;
+		win.customState.loadTabUrl = loadTabUrl;
 		win.customState.switchTab = switchTab;
 		win.customState.closeTab = closeTab;
 		win.customState.handleNav = handleNav;
-		win.customState.hidePopover = () => {
-			if (floatingPopover) {
-				floatingPopover.classList.add("hidden");
-				win.customState.activePopup = null;
-			}
-		};
+		win.customState.hidePopover = hideExtensionPopover;
 
 		const renderTabStrip = () => {
 			tabsListContainer.innerHTML = "";
@@ -4501,6 +4927,7 @@ window.addEventListener("load", async () => {
 			tabsListContainer.appendChild(newTabBtn);
 			updateTopRightButtonsState();
 		};
+		win.customState.renderTabStrip = renderTabStrip;
 
 		const renderQuickBookmarks = () => {
 			const bms = Array.isArray(store.bookmarks) ? store.bookmarks : [];
@@ -4540,6 +4967,12 @@ window.addEventListener("load", async () => {
 			const activeTab = getActiveTab();
 			const activeUrl = (activeTab?.url || "").toLowerCase();
 			const isHistory = activeUrl.startsWith("spade://history") || activeUrl.startsWith("veil://history") || activeUrl.startsWith("onyx://history");
+			const isExtensionsDrawer = win.customState.activePanel === "extensions";
+			const isExtensionsPage = activeUrl.startsWith("spade://extensions") || activeUrl.startsWith("veil://extensions") || activeUrl.startsWith("onyx://extensions");
+
+			extensionsToggleBtn.className = `w-7 h-7 rounded-lg text-xs font-medium transition-colors flex items-center justify-center cursor-pointer ${
+				(isExtensionsDrawer || isExtensionsPage) ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-transparent'
+			}`;
 
 			historyToggleBtn.className = `w-7 h-7 rounded-lg text-xs font-medium transition-colors flex items-center justify-center cursor-pointer ${
 				isHistory ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm' : 'bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-transparent'
@@ -4806,6 +5239,15 @@ window.addEventListener("load", async () => {
 				drawerEl.appendChild(listEl);
 				drawerContainer.appendChild(drawerEl);
 			} else if (activePanel === "extensions") {
+				if (!window.sapphire && window.ensureSapphire) {
+					window.ensureSapphire()
+						.then(() => {
+							if (win.customState.activePanel === "extensions") {
+								renderDrawer();
+							}
+						})
+						.catch(() => {});
+				}
 				const exts = window.sapphire ? window.sapphire.getInstalledExtensions() : [];
 				const filterQuery = (win.customState.extensionSearch || "").toLowerCase();
 
@@ -4982,7 +5424,11 @@ window.addEventListener("load", async () => {
 										if (window.normalizeExtensionBuffer) {
 											buffer = await window.normalizeExtensionBuffer(buffer, `${item.id}.crx`);
 										}
-										await window.sapphire.installExtension(buffer, `${item.id}.crx`);
+										const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire() : null);
+										if (!sEngine || typeof sEngine.installExtension !== "function") {
+											throw new Error("Sapphire extension engine is not ready.");
+										}
+										await sEngine.installExtension(buffer, `${item.id}.crx`);
 										instBtn.className = "px-2.5 py-1 rounded-lg bg-emerald-600/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 shrink-0";
 										instBtn.innerHTML = `<span>✓</span><span>Installed</span>`;
 										if (typeof win.customState.renderToolbarExtensions === "function") {
@@ -5080,8 +5526,9 @@ window.addEventListener("load", async () => {
 						toggleInput.checked = Boolean(ext.enabled);
 						toggleInput.className = "sr-only peer";
 						toggleInput.onchange = async (e) => {
-							if (window.sapphire) {
-								await window.sapphire.setExtensionEnabled(ext.id, e.target.checked);
+							const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+							if (sEngine) {
+								await sEngine.setExtensionEnabled(ext.id, e.target.checked);
 								renderDrawer();
 								if (typeof win.customState.renderToolbarExtensions === "function") {
 									win.customState.renderToolbarExtensions();
@@ -5110,30 +5557,23 @@ window.addEventListener("load", async () => {
 						const leftActions = document.createElement("div");
 						leftActions.className = "flex items-center gap-1.5";
 
-						if (ext.hasPopup && window.sapphire) {
+						if (ext.hasPopup) {
 							const popupBtn = document.createElement("button");
 							popupBtn.className = "px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-medium transition-colors flex items-center gap-1 cursor-pointer";
 							popupBtn.innerHTML = `<span>🪄</span><span>Popup</span>`;
 							popupBtn.onclick = async () => {
 								try {
-									let popupUrl = null;
-									if (typeof window.sapphire.getPopupUrl === "function") {
-										popupUrl = await window.sapphire.getPopupUrl(ext.id);
-									} else if (typeof window.sapphire.getExtensionPopupPage === "function") {
-										const page = window.sapphire.getExtensionPopupPage(ext.id);
-										if (page) {
-											popupUrl = `${window.location.origin}/~/sx/${ext.id}/${String(page).replace(/^\//, "")}`;
-										}
+									const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+									if (!sEngine) return;
+									const page = typeof sEngine.getExtensionPopupPage === "function" ? sEngine.getExtensionPopupPage(ext.id) : null;
+									const popupUrl = ext.popupUrl || (page && typeof sEngine.extensionUrl === "function" ? sEngine.extensionUrl(ext.id, page) : null);
+									if (typeof win.customState.showExtensionPopover === "function") {
+										win.customState.showExtensionPopover(ext.id, popupUrl);
+									} else if (popupUrl) {
+										createNewTab(popupUrl);
 									}
-									if (popupUrl) {
-										if (typeof win.customState.showExtensionPopover === "function") {
-											win.customState.showExtensionPopover(ext.id, popupUrl);
-										} else {
-											createNewTab(popupUrl);
-										}
-										win.customState.activePanel = "none";
-										renderDrawer();
-									}
+									win.customState.activePanel = "none";
+									renderDrawer();
 								} catch (popupErr) {
 									console.error("[ExtensionPopup] Failed to open popup:", popupErr);
 								}
@@ -5146,10 +5586,13 @@ window.addEventListener("load", async () => {
 						uninstallBtn.innerHTML = `<span>🗑️</span><span>Remove</span>`;
 						uninstallBtn.onclick = async () => {
 							if (confirm(`Remove extension "${ext.name}"?`)) {
-								await window.sapphire.uninstallExtension(ext.id);
-								renderDrawer();
-								if (typeof win.customState.renderToolbarExtensions === "function") {
-									win.customState.renderToolbarExtensions();
+								const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+								if (sEngine) {
+									await sEngine.uninstallExtension(ext.id);
+									renderDrawer();
+									if (typeof win.customState.renderToolbarExtensions === "function") {
+										win.customState.renderToolbarExtensions();
+									}
 								}
 							}
 						};
@@ -5207,7 +5650,8 @@ window.addEventListener("load", async () => {
 
 					const handleExtFile = async (file) => {
 						if (!file) return;
-						if (!window.sapphire) {
+						const sEngine = window.sapphire || (window.ensureSapphire ? await window.ensureSapphire().catch(() => null) : null);
+						if (!sEngine || typeof sEngine.installExtension !== "function") {
 							alert("Extensions engine is not ready.");
 							return;
 						}
@@ -5219,9 +5663,12 @@ window.addEventListener("load", async () => {
 							if (window.normalizeExtensionBuffer) {
 								buffer = await window.normalizeExtensionBuffer(buffer, file.name);
 							}
-							await window.sapphire.installExtension(buffer, file.name);
+							await sEngine.installExtension(buffer, file.name);
 							statusMsg.className = "text-[11px] text-emerald-400 flex items-center gap-1.5";
 							statusMsg.innerHTML = `<span>✓</span><span>Successfully installed extension!</span>`;
+							if (typeof win.customState.renderToolbarExtensions === "function") {
+								win.customState.renderToolbarExtensions();
+							}
 							setTimeout(() => {
 								win.customState.drawerExtensionTab = "installed";
 								renderDrawer();
@@ -5326,6 +5773,11 @@ window.addEventListener("load", async () => {
 			}
 		};
 
+		extensionsToggleBtn.onclick = () => {
+			win.customState.activePanel = win.customState.activePanel === "extensions" ? "none" : "extensions";
+			renderDrawer();
+		};
+
 		historyToggleBtn.onclick = () => {
 			handleNav("onyx://history");
 		};
@@ -5370,6 +5822,7 @@ window.addEventListener("load", async () => {
 		switchTab(win.customState.activeTabId);
 		renderQuickBookmarks();
 		renderDrawer();
+		renderToolbarExtensions();
 
 		win.customState.rootEl = browserRoot;
 		return browserRoot;
