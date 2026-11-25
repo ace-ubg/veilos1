@@ -490,9 +490,12 @@
 
 					<div class="flex-1 overflow-y-auto custom-scrollbar p-4">
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-							${filtered.map(f => `
+							${filtered.map(f => {
+								const isVipApp = ["movies", "ai", "music", "cloudgaming"].includes(f.appId);
+								return `
 								<div data-app-id="${f.appId || ''}" data-file-name="${f.name}"
-									class="file-item p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] active:scale-95 border border-white/5 hover:border-indigo-400/40 cursor-pointer flex flex-col items-center gap-2 transition-all group">
+									class="file-item relative p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] active:scale-95 border border-white/5 hover:border-indigo-400/40 cursor-pointer flex flex-col items-center gap-2 transition-all group">
+									${isVipApp ? `<span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[9px] font-bold tracking-wider uppercase">VIP</span>` : ""}
 									<div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-2xl ${f.color} group-hover:scale-110 transition-transform">
 										<i class="${f.icon}"></i>
 									</div>
@@ -501,7 +504,8 @@
 										<div class="text-[10px] text-neutral-400 font-mono tabular-nums mt-0.5">${f.size}</div>
 									</div>
 								</div>
-							`).join("")}
+							`;
+							}).join("")}
 						</div>
 					</div>
 				</div>

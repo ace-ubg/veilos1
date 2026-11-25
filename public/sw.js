@@ -294,11 +294,12 @@ async function handleRequest(event) {
 			pathname.startsWith("/socket.io/") ||
 			pathname === "/sw.js" ||
 			pathname === "/index.html" ||
+			pathname === "/veil-auth.js" ||
 			pathname === "/" ||
 			pathname === "/data.tsx" ||
 			pathname === "/data.js";
 
-		if (!isInternalPath && cleanPath) {
+		if (url.origin === self.location.origin && !isInternalPath && cleanPath) {
 			const fileRes = await findExtensionFile(cleanPath, mappedExtId);
 			if (fileRes && fileRes.bytes) {
 				if (cid && fileRes.extId) clientToExtId.set(cid, fileRes.extId);

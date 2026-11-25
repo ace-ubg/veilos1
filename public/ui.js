@@ -96,7 +96,10 @@ if (!store) {
 	if (typeof self !== "undefined") self.store = store;
 }
 
-window.openSettingsModal = () => {
+window.openSettingsModal = (tabName) => {
+	if (tabName && typeof window.__setCfgTab === "function") {
+		window.__setCfgTab(tabName);
+	}
 	const cfg = document.querySelector("dialog.cfg");
 	if (cfg) {
 		if (typeof cfg.showModal === "function") {
@@ -108,6 +111,9 @@ window.openSettingsModal = () => {
 		} else {
 			cfg.setAttribute("open", "");
 		}
+	}
+	if (typeof window.__refreshCfgPanels === "function") {
+		window.__refreshCfgPanels();
 	}
 };
 
@@ -287,8 +293,1016 @@ if (typeof window !== "undefined") {
 	window.reconnectWispTransport = reconnectWispTransport;
 }
 
+const VIP_GATED_APPS = new Set(["movies", "ai", "music", "cloudgaming"]);
+const VIP_GATED_APP_LABELS = {
+	movies: "SSV Movies",
+	ai: "Scenario",
+	music: "Sonora",
+	cloudgaming: "Cloud Gaming",
+};
+
+function hasVipAccess() {
+	return Boolean(window.VeilAuth && typeof window.VeilAuth.hasVipAccess === "function" && window.VeilAuth.hasVipAccess());
+}
+
+function getVeilAuthState() {
+	if (window.VeilAuth && typeof window.VeilAuth.getState === "function") {
+		return window.VeilAuth.getState();
+	}
+	return { mode: "signed_out", username: "Veil User", email: null, isVip: false, isOwner: false, vipExpiresAt: null };
+}
+
+function formatVipExpiry(ts) {
+	if (!ts) return "Never (Lifetime)";
+	const d = new Date(Number(ts));
+	if (isNaN(d.getTime())) return "Unknown";
+	return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function parseExpirationSelection(preset, customValue) {
+	const now = Date.now();
+	if (preset === "never" || !preset) return null;
+	if (preset === "1h") return now + 60 * 60 * 1000;
+	if (preset === "24h") return now + 24 * 60 * 60 * 1000;
+	if (preset === "7d") return now + 7 * 24 * 60 * 60 * 1000;
+	if (preset === "30d") return now + 30 * 24 * 60 * 60 * 1000;
+	if (preset === "custom" && customValue) {
+		const ts = new Date(customValue).getTime();
+		return isNaN(ts) ? null : ts;
+	}
+	return null;
+}
+
+function renderVipGateView(appId, win, osInstance) {
+	const root = document.createElement("div");
+	root.className = "w-full h-full bg-[#09090b] text-neutral-100 flex items-center justify-center p-6 select-none overflow-y-auto";
+
+	const appName = VIP_GATED_APP_LABELS[appId] || win.title || "VIP App";
+	const auth = getVeilAuthState();
+	const isGuestOrOut = auth.mode !== "account";
+
+	root.innerHTML = `
+		<div class="max-w-md w-full bg-[#111118]/95 border border-amber-500/30 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center gap-4">
+			<div class="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-400/35 flex items-center justify-center text-amber-400 text-2xl">
+				<i class="fa-solid fa-crown"></i>
+			</div>
+			<div class="flex flex-col gap-1">
+				<span class="text-[11px] font-bold uppercase tracking-widest text-amber-400">VIP Exclusive Access</span>
+				<h2 class="text-lg font-bold text-white tracking-tight">${escapeHtml(appName)} Requires VIP</h2>
+				<p class="text-xs text-neutral-400 leading-relaxed mt-0.5">
+					SSV Movies, Scenario, Sonora, and Cloud Gaming are reserved for VeilOS VIP members.
+				</p>
+			</div>
+			<div class="w-full p-3 rounded-2xl bg-black/40 border border-white/10 text-xs flex items-center justify-between">
+				<span class="text-neutral-400">Current Session</span>
+				<span class="font-semibold text-white">
+					${auth.mode === "account" ? `@${escapeHtml(auth.username)} (Free)` : (auth.mode === "guest" ? "Guest Mode" : "Signed Out")}
+				</span>
+			</div>
+			<div class="flex flex-col gap-2 w-full">
+				${isGuestOrOut ? `
+					<button type="button" id="vip-gate-signin-btn"
+						class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors">
+						<i class="fa-solid fa-right-to-bracket"></i>
+						<span>Sign In to Redeem VIP</span>
+					</button>
+				` : `
+					<button type="button" id="vip-gate-redeem-btn"
+						class="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors">
+						<i class="fa-solid fa-ticket"></i>
+						<span>Redeem VIP Code in Settings</span>
+					</button>
+				`}
+				<button type="button" id="vip-gate-settings-btn"
+					class="w-full py-2 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-colors">
+					<i class="fa-solid fa-gear"></i>
+					<span>Open Account &amp; VIP Settings</span>
+				</button>
+			</div>
+		</div>
+	`;
+
+	const signInBtn = root.querySelector("#vip-gate-signin-btn");
+	if (signInBtn) {
+		signInBtn.onclick = () => {
+			if (osInstance) {
+				osInstance.isLocked = true;
+				osInstance.windows = [...osInstance.windows];
+			}
+		};
+	}
+	const redeemBtn = root.querySelector("#vip-gate-redeem-btn");
+	if (redeemBtn) {
+		redeemBtn.onclick = () => window.openSettingsModal("vip");
+	}
+	const settingsBtn = root.querySelector("#vip-gate-settings-btn");
+	if (settingsBtn) {
+		settingsBtn.onclick = () => window.openSettingsModal("vip");
+	}
+
+	return root;
+}
+
+function mountSettingsVipPanel(container) {
+	let feedback = null;
+	let authMode = "signin";
+	let busy = false;
+	let codeInputVal = "";
+
+	function render() {
+		const auth = getVeilAuthState();
+		const isAccount = auth.mode === "account";
+		const isOwner = Boolean(auth.isOwner);
+		const isVip = Boolean(isOwner || hasVipAccess());
+
+		container.innerHTML = `
+			<div class="flex flex-col gap-4">
+				<div class="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-3">
+					<div class="flex items-center gap-3 min-w-0">
+						${isAccount && auth.photoURL
+							? `<img src="${escapeHtml(auth.photoURL)}" alt="" class="w-11 h-11 rounded-full object-cover border border-white/20 shrink-0" />`
+							: `<div class="w-11 h-11 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0"><i class="fa-solid fa-user"></i></div>`
+						}
+						<div class="flex flex-col min-w-0">
+							<div class="flex items-center gap-2">
+								<span class="text-sm font-bold text-white truncate">${isAccount ? `@${escapeHtml(auth.username)}` : (auth.mode === "guest" ? "Guest Session" : "Not Signed In")}</span>
+								${isOwner
+									? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/40 shrink-0">Owner</span>`
+									: isVip
+									? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0">VIP Active</span>`
+									: `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-white/10 text-neutral-300 border border-white/10 shrink-0">${auth.mode === "guest" ? "Guest" : "Free"}</span>`
+								}
+							</div>
+							<span class="text-[11px] text-neutral-400 truncate mt-0.5">
+								${isAccount ? escapeHtml(auth.email || "Onyx Chat Account") : "Sign in with your Onyx Chat account to sync & unlock VIP"}
+							</span>
+							${isVip && !isOwner ? `
+								<span class="text-[10px] text-emerald-300 font-mono mt-1">Expires: ${escapeHtml(formatVipExpiry(auth.vipExpiresAt))}</span>
+							` : ""}
+						</div>
+					</div>
+					<div class="flex items-center gap-1.5 shrink-0">
+						${isAccount ? `
+							<button type="button" id="cfg-signout-btn" class="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 text-rose-200 text-xs font-semibold cursor-pointer transition-colors">
+								Sign Out
+							</button>
+						` : `
+							<button type="button" id="cfg-guest-btn" class="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 text-xs font-medium cursor-pointer transition-colors">
+								${auth.mode === "guest" ? "Guest Active" : "Use Guest"}
+							</button>
+						`}
+					</div>
+				</div>
+
+				${feedback ? `
+					<div class="p-3 rounded-xl border text-xs font-medium ${feedback.type === "error" ? "bg-rose-500/15 border-rose-500/35 text-rose-200" : "bg-emerald-500/15 border-emerald-500/35 text-emerald-200"}">
+						${escapeHtml(feedback.text)}
+					</div>
+				` : ""}
+
+				${!isAccount ? `
+					<div class="p-4 rounded-2xl bg-black/35 border border-white/10 flex flex-col gap-3">
+						<div class="flex items-center justify-between">
+							<span class="text-xs font-bold uppercase tracking-wider text-neutral-300">Onyx Chat Account Sign In</span>
+							<div class="flex gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10">
+								<button type="button" id="cfg-mode-signin" class="px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer ${authMode === "signin" ? "bg-indigo-600 text-white" : "text-neutral-400 hover:text-white"}">Sign In</button>
+								<button type="button" id="cfg-mode-signup" class="px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer ${authMode === "signup" ? "bg-indigo-600 text-white" : "text-neutral-400 hover:text-white"}">Create Account</button>
+							</div>
+						</div>
+						<form id="cfg-auth-form" class="flex flex-col gap-2.5">
+							<input id="cfg-auth-email" type="email" required placeholder="Email address" class="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
+							<input id="cfg-auth-pass" type="password" required placeholder="Password" class="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
+							${authMode === "signup" ? `
+								<input id="cfg-auth-user" type="text" required maxlength="20" placeholder="Unique Onyx Chat username" class="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
+							` : ""}
+							<button type="submit" ${busy ? "disabled" : ""} class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold cursor-pointer transition-colors">
+								${busy ? "Processing..." : (authMode === "signup" ? "Create Onyx Account" : "Sign In")}
+							</button>
+						</form>
+					</div>
+				` : ""}
+
+				<div class="p-4 rounded-2xl bg-black/35 border border-amber-500/25 flex flex-col gap-3">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<i class="fa-solid fa-crown text-amber-400 text-sm"></i>
+							<span class="text-xs font-bold uppercase tracking-wider text-amber-300">Redeem VIP Code</span>
+						</div>
+						<span class="text-[10px] text-neutral-400">Unlocks SSV Movies, Scenario, Sonora &amp; Cloud Gaming</span>
+					</div>
+					<form id="cfg-redeem-form" class="flex gap-2">
+						<input id="cfg-vip-code-input" type="text" value="${escapeHtml(codeInputVal)}" placeholder="Enter VIP code (e.g. VEIL-XXXX-XXXX)"
+							class="flex-1 px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white font-mono uppercase placeholder-neutral-500 outline-none focus:border-amber-400" />
+						<button type="submit" ${busy || !isAccount ? "disabled" : ""}
+							class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-45 text-black text-xs font-bold cursor-pointer transition-colors shrink-0">
+							${busy ? "..." : "Redeem"}
+						</button>
+					</form>
+					${!isAccount ? `<p class="text-[11px] text-neutral-400">Sign in above first to bind a VIP code to your Onyx Chat account.</p>` : ""}
+				</div>
+
+				<button type="button" id="cfg-replay-tour-btn"
+					class="w-full py-2.5 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 hover:text-white text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors">
+					<div class="flex items-center gap-2">
+						<i class="fa-solid fa-compass text-sky-400"></i>
+						<span>Replay VeilOS Interactive Tour</span>
+					</div>
+					<span class="text-[11px] text-sky-400 font-medium">Launch &rarr;</span>
+				</button>
+			</div>
+		`;
+
+		const signOutBtn = container.querySelector("#cfg-signout-btn");
+		if (signOutBtn) {
+			signOutBtn.onclick = async () => {
+				try {
+					await window.VeilAuth.signOut();
+					feedback = { type: "ok", text: "Signed out cleanly." };
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Failed to sign out." };
+				}
+				render();
+			};
+		}
+
+		const guestBtn = container.querySelector("#cfg-guest-btn");
+		if (guestBtn) {
+			guestBtn.onclick = async () => {
+				await window.VeilAuth.continueAsGuest();
+				feedback = { type: "ok", text: "Guest mode active." };
+				render();
+			};
+		}
+
+		const modeIn = container.querySelector("#cfg-mode-signin");
+		const modeUp = container.querySelector("#cfg-mode-signup");
+		if (modeIn) modeIn.onclick = () => { authMode = "signin"; feedback = null; render(); };
+		if (modeUp) modeUp.onclick = () => { authMode = "signup"; feedback = null; render(); };
+
+		const authForm = container.querySelector("#cfg-auth-form");
+		if (authForm) {
+			authForm.onsubmit = async (e) => {
+				e.preventDefault();
+				if (busy) return;
+				busy = true;
+				feedback = null;
+				const em = container.querySelector("#cfg-auth-email")?.value || "";
+				const pw = container.querySelector("#cfg-auth-pass")?.value || "";
+				const un = container.querySelector("#cfg-auth-user")?.value || "";
+				render();
+				try {
+					if (authMode === "signup") {
+						await window.VeilAuth.signUp({ email: em, password: pw, username: un });
+						feedback = { type: "ok", text: "Account created & signed in!" };
+					} else {
+						await window.VeilAuth.signIn(em, pw);
+						feedback = { type: "ok", text: "Signed in with Onyx Chat account!" };
+					}
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Authentication failed." };
+				} finally {
+					busy = false;
+					render();
+				}
+			};
+		}
+
+		const codeInp = container.querySelector("#cfg-vip-code-input");
+		if (codeInp) {
+			codeInp.oninput = (e) => { codeInputVal = e.target.value; };
+		}
+
+		const redeemForm = container.querySelector("#cfg-redeem-form");
+		if (redeemForm) {
+			redeemForm.onsubmit = async (e) => {
+				e.preventDefault();
+				if (busy) return;
+				const raw = container.querySelector("#cfg-vip-code-input")?.value || codeInputVal;
+				if (!raw.trim()) {
+					feedback = { type: "error", text: "Enter a VIP code first." };
+					render();
+					return;
+				}
+				busy = true;
+				feedback = null;
+				render();
+				try {
+					const res = await window.VeilAuth.redeemVipCode(raw);
+					codeInputVal = "";
+					feedback = {
+						type: "ok",
+						text: `VIP unlocked (${res.code})! Expires: ${formatVipExpiry(res.expiresAt)}.`,
+					};
+					window.osGlobalInstance && window.osGlobalInstance.notify("VIP Activated", "SSV Movies, Scenario, Sonora & Cloud Gaming unlocked!", "fa-solid fa-crown", "info");
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Could not redeem VIP code." };
+				} finally {
+					busy = false;
+					render();
+				}
+			};
+		}
+
+		const tourBtn = container.querySelector("#cfg-replay-tour-btn");
+		if (tourBtn) {
+			tourBtn.onclick = () => {
+				window.closeSettingsModal();
+				if (window.osGlobalInstance && typeof window.osGlobalInstance.startTour === "function") {
+					window.osGlobalInstance.startTour(true);
+				}
+			};
+		}
+	}
+
+	render();
+	container.__refreshPanel = render;
+}
+
+function mountSettingsOwnerPanel(container) {
+	let subTab = "codes";
+	let users = [];
+	let codes = [];
+	let loadingData = false;
+	let feedback = null;
+	let searchUsers = "";
+	let editingNoteCode = null;
+	let confirmDeleteCode = null;
+
+	let newCodeVal = "";
+	let usageMode = "limited";
+	let maxUsesVal = "1";
+	let expPreset = "never";
+	let expCustom = "";
+	let ownerNoteVal = "";
+
+	let manualTargetVal = "";
+	let manualExpPreset = "never";
+	let manualExpCustom = "";
+
+	async function loadOwnerData() {
+		if (!window.VeilAuth || !window.VeilAuth.isOwner()) return;
+		loadingData = true;
+		render();
+		try {
+			const [uList, cList] = await Promise.all([
+				window.VeilAuth.listOnyxUsersWithVip(),
+				window.VeilAuth.listVipCodes(),
+			]);
+			users = uList;
+			codes = cList;
+		} catch (err) {
+			feedback = { type: "error", text: err.message || "Failed to load Owner data." };
+		} finally {
+			loadingData = false;
+			render();
+		}
+	}
+
+	function render() {
+		if (!window.VeilAuth || !window.VeilAuth.isOwner()) {
+			container.innerHTML = `<div class="p-4 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-2xl">Owner authentication required (678.gxvin@gmail.com).</div>`;
+			return;
+		}
+
+		const filteredUsers = users.filter((u) => {
+			if (!searchUsers.trim()) return true;
+			const q = searchUsers.trim().toLowerCase();
+			return (
+				String(u.username || "").toLowerCase().includes(q) ||
+				String(u.email || "").toLowerCase().includes(q) ||
+				String(u.uid || "").toLowerCase().includes(q)
+			);
+		});
+
+		container.innerHTML = `
+			<div class="flex flex-col gap-3">
+				<div class="flex items-center justify-between gap-2 bg-amber-500/10 border border-amber-400/30 px-3.5 py-2.5 rounded-2xl">
+					<div class="flex items-center gap-2 min-w-0">
+						<i class="fa-solid fa-shield-halved text-amber-400"></i>
+						<div class="flex flex-col min-w-0">
+							<span class="text-xs font-bold text-amber-200">Owner Console</span>
+							<span class="text-[10px] text-amber-300/80 font-mono truncate">678.gxvin@gmail.com</span>
+						</div>
+					</div>
+					<div class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 shrink-0">
+						<button type="button" id="owner-sub-codes" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${subTab === "codes" ? "bg-amber-500 text-black font-bold" : "text-neutral-300 hover:text-white"}">VIP Codes (${codes.length})</button>
+						<button type="button" id="owner-sub-users" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${subTab === "users" ? "bg-amber-500 text-black font-bold" : "text-neutral-300 hover:text-white"}">Assign VIP (${users.length})</button>
+						<button type="button" id="owner-refresh-btn" class="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/15 text-neutral-300 flex items-center justify-center text-[10px] cursor-pointer" title="Refresh"><i class="fa-solid fa-rotate ${loadingData ? "fa-spin" : ""}"></i></button>
+					</div>
+				</div>
+
+				${feedback ? `
+					<div class="p-2.5 rounded-xl border text-xs font-medium ${feedback.type === "error" ? "bg-rose-500/15 border-rose-500/35 text-rose-200" : "bg-emerald-500/15 border-emerald-500/35 text-emerald-200"}">
+						${escapeHtml(feedback.text)}
+					</div>
+				` : ""}
+
+				${subTab === "codes" ? `
+					<form id="owner-create-code-form" class="p-3.5 rounded-2xl bg-black/40 border border-white/10 flex flex-col gap-2.5">
+						<div class="text-[11px] font-bold uppercase tracking-wider text-neutral-300">Create VIP Code</div>
+						<div class="flex gap-2">
+							<input id="owner-code-input" type="text" value="${escapeHtml(newCodeVal)}" placeholder="Code (leave blank to auto-generate)"
+								class="flex-1 px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white font-mono uppercase placeholder-neutral-500 outline-none focus:border-amber-400" />
+							<button type="button" id="owner-gen-code-btn" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white cursor-pointer shrink-0">Generate</button>
+						</div>
+
+						<div class="grid grid-cols-2 gap-2">
+							<div class="flex flex-col gap-1">
+								<label class="text-[10px] uppercase font-bold text-neutral-400">Usage Amount</label>
+								<div class="flex gap-1.5">
+									<select id="owner-usage-mode" class="flex-1 px-2.5 py-2 rounded-xl bg-black/60 border border-white/15 text-xs text-white outline-none">
+										<option value="limited" ${usageMode === "limited" ? "selected" : ""}>Limited Uses</option>
+										<option value="unlimited" ${usageMode === "unlimited" ? "selected" : ""}>Unlimited</option>
+									</select>
+									${usageMode === "limited" ? `
+										<input id="owner-max-uses" type="number" min="1" max="100000" value="${escapeHtml(maxUsesVal)}"
+											class="w-20 px-2.5 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white font-mono tabular-nums outline-none focus:border-amber-400" />
+									` : ""}
+								</div>
+							</div>
+
+							<div class="flex flex-col gap-1">
+								<label class="text-[10px] uppercase font-bold text-neutral-400">Expiration</label>
+								<select id="owner-exp-preset" class="w-full px-2.5 py-2 rounded-xl bg-black/60 border border-white/15 text-xs text-white outline-none">
+									<option value="never" ${expPreset === "never" ? "selected" : ""}>Never Expires</option>
+									<option value="1h" ${expPreset === "1h" ? "selected" : ""}>1 Hour</option>
+									<option value="24h" ${expPreset === "24h" ? "selected" : ""}>24 Hours</option>
+									<option value="7d" ${expPreset === "7d" ? "selected" : ""}>7 Days</option>
+									<option value="30d" ${expPreset === "30d" ? "selected" : ""}>30 Days</option>
+									<option value="custom" ${expPreset === "custom" ? "selected" : ""}>Custom Date/Time</option>
+								</select>
+							</div>
+						</div>
+
+						${expPreset === "custom" ? `
+							<input id="owner-exp-custom" type="datetime-local" value="${escapeHtml(expCustom)}"
+								class="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white font-mono outline-none focus:border-amber-400" />
+						` : ""}
+
+						<div class="flex flex-col gap-1">
+							<label class="text-[10px] uppercase font-bold text-amber-300/90 flex items-center gap-1.5">
+								<i class="fa-solid fa-lock text-[9px]"></i>
+								<span>Owner-Only Private Note (hidden from all other users)</span>
+							</label>
+							<textarea id="owner-note-input" rows="2" placeholder="Optional private note about who this code is for..."
+								class="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-amber-400 resize-none">${escapeHtml(ownerNoteVal)}</textarea>
+						</div>
+
+						<button type="submit" class="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold cursor-pointer transition-colors">
+							Create VIP Code
+						</button>
+					</form>
+
+					<div class="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar pr-0.5">
+						${loadingData && codes.length === 0 ? `<div class="py-6 text-center text-xs text-neutral-400">Loading VIP codes...</div>` : ""}
+						${!loadingData && codes.length === 0 ? `<div class="py-6 text-center text-xs text-neutral-500">No VIP codes created yet.</div>` : ""}
+						${codes.map((c) => {
+							const used = Number(c.usedCount || 0);
+							const max = c.maxUses != null ? Number(c.maxUses) : null;
+							const isExpired = Boolean(c.expiresAt && Date.now() >= Number(c.expiresAt));
+							const isMaxed = max !== null && used >= max;
+							const isActive = c.active !== false && !isExpired && !isMaxed;
+							const statusLabel = c.active === false ? "Paused" : isExpired ? "Expired" : isMaxed ? "Maxed" : "Active";
+							const statusCls = isActive ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : "bg-rose-500/15 text-rose-300 border-rose-500/30";
+
+							return `
+								<div class="p-3 rounded-2xl bg-black/40 border border-white/10 flex flex-col gap-2">
+									<div class="flex items-center justify-between gap-2">
+										<div class="flex items-center gap-2 min-w-0">
+											<span class="font-mono text-xs font-bold text-white tracking-wide truncate">${escapeHtml(c.code)}</span>
+											<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${statusCls}">${statusLabel}</span>
+										</div>
+										<div class="flex items-center gap-1 shrink-0">
+											<button type="button" data-copy-code="${escapeHtml(c.code)}" class="owner-copy-code px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] text-neutral-200 cursor-pointer" title="Copy code"><i class="fa-solid fa-copy"></i></button>
+											<button type="button" data-toggle-code="${escapeHtml(c.code)}" data-active="${c.active !== false ? "1" : "0"}" class="owner-toggle-code px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] text-neutral-200 cursor-pointer">${c.active !== false ? "Pause" : "Enable"}</button>
+											${confirmDeleteCode === c.code ? `
+												<button type="button" data-del-confirm="${escapeHtml(c.code)}" class="owner-del-confirm px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold cursor-pointer">Confirm Delete</button>
+											` : `
+												<button type="button" data-del-code="${escapeHtml(c.code)}" class="owner-del-code px-2 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 text-[10px] cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+											`}
+										</div>
+									</div>
+									<div class="flex items-center justify-between text-[10px] text-neutral-400 font-mono">
+										<span>Uses: <strong class="text-neutral-200">${used} / ${max === null ? "∞" : max}</strong></span>
+										<span>Expires: ${escapeHtml(formatVipExpiry(c.expiresAt))}</span>
+									</div>
+									<div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] flex flex-col gap-1">
+										<div class="flex items-center justify-between">
+											<span class="text-[9px] font-bold uppercase tracking-wider text-amber-300"><i class="fa-solid fa-lock mr-1"></i>Owner Note</span>
+											<button type="button" data-edit-note="${escapeHtml(c.code)}" class="owner-edit-note-btn text-[10px] text-amber-300 hover:text-white cursor-pointer">${editingNoteCode === c.code ? "Cancel" : "Edit Note"}</button>
+										</div>
+										${editingNoteCode === c.code ? `
+											<div class="flex gap-1.5 mt-0.5">
+												<input type="text" data-note-input="${escapeHtml(c.code)}" value="${escapeHtml(c.ownerNote || "")}" class="flex-1 px-2 py-1 rounded-lg bg-black/60 border border-amber-400/40 text-xs text-white outline-none" />
+												<button type="button" data-save-note="${escapeHtml(c.code)}" class="owner-save-note px-2.5 py-1 rounded-lg bg-amber-500 text-black text-[10px] font-bold cursor-pointer">Save</button>
+											</div>
+										` : `
+											<p class="text-neutral-200 whitespace-pre-wrap break-words">${c.ownerNote ? escapeHtml(c.ownerNote) : `<span class="text-neutral-500 italic">No owner note</span>`}</p>
+										`}
+									</div>
+								</div>
+							`;
+						}).join("")}
+					</div>
+				` : `
+					<form id="owner-manual-assign-form" class="p-3.5 rounded-2xl bg-black/40 border border-white/10 flex flex-col gap-2">
+						<div class="text-[11px] font-bold uppercase tracking-wider text-neutral-300">Assign VIP by Email or Username</div>
+						<div class="flex gap-2">
+							<input id="owner-manual-target" type="text" value="${escapeHtml(manualTargetVal)}" placeholder="email@example.com or Onyx username"
+								class="flex-1 px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-amber-400" />
+							<select id="owner-manual-exp" class="px-2.5 py-2 rounded-xl bg-black/60 border border-white/15 text-xs text-white outline-none">
+								<option value="never" ${manualExpPreset === "never" ? "selected" : ""}>Lifetime</option>
+								<option value="24h" ${manualExpPreset === "24h" ? "selected" : ""}>24h</option>
+								<option value="7d" ${manualExpPreset === "7d" ? "selected" : ""}>7d</option>
+								<option value="30d" ${manualExpPreset === "30d" ? "selected" : ""}>30d</option>
+								<option value="custom" ${manualExpPreset === "custom" ? "selected" : ""}>Custom</option>
+							</select>
+						</div>
+						${manualExpPreset === "custom" ? `
+							<input id="owner-manual-custom-exp" type="datetime-local" value="${escapeHtml(manualExpCustom)}" class="w-full px-3 py-1.5 rounded-xl bg-black/50 border border-white/15 text-xs text-white font-mono outline-none" />
+						` : ""}
+						<button type="submit" class="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold cursor-pointer">Grant VIP</button>
+					</form>
+
+					<input id="owner-user-search" type="text" value="${escapeHtml(searchUsers)}" placeholder="Search Onyx Chat users by username, email, or UID..."
+						class="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-amber-400" />
+
+					<div class="flex flex-col gap-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-0.5">
+						${loadingData && users.length === 0 ? `<div class="py-6 text-center text-xs text-neutral-400">Loading users...</div>` : ""}
+						${filteredUsers.map((u) => `
+							<div class="p-2.5 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between gap-2">
+								<div class="flex items-center gap-2.5 min-w-0">
+									<img src="${escapeHtml(u.photoURL || "")}" alt="" class="w-8 h-8 rounded-full object-cover border border-white/15 shrink-0" />
+									<div class="flex flex-col min-w-0">
+										<div class="flex items-center gap-1.5">
+											<span class="text-xs font-bold text-white truncate">@${escapeHtml(u.username)}</span>
+											${u.isOwner
+												? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-400/30">Owner</span>`
+												: u.vipActive
+												? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">VIP</span>`
+												: ""
+											}
+										</div>
+										<span class="text-[10px] text-neutral-400 truncate font-mono">${escapeHtml(u.email || u.uid || "")}</span>
+									</div>
+								</div>
+								<div class="flex items-center gap-1.5 shrink-0">
+									${!u.isOwner ? (
+										u.vipActive
+											? `<button type="button" data-vip-uid="${escapeHtml(u.uid || "")}" data-vip-email="${escapeHtml(u.email || "")}" data-vip-name="${escapeHtml(u.username || "")}" data-vip-action="revoke" class="owner-vip-btn px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 text-rose-200 border border-rose-500/30 text-[11px] font-semibold cursor-pointer">Revoke VIP</button>`
+											: `<button type="button" data-vip-uid="${escapeHtml(u.uid || "")}" data-vip-email="${escapeHtml(u.email || "")}" data-vip-name="${escapeHtml(u.username || "")}" data-vip-action="grant" class="owner-vip-btn px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 border border-emerald-500/30 text-[11px] font-semibold cursor-pointer">Grant VIP</button>`
+									) : `<span class="text-[10px] text-amber-300 font-semibold">Full Access</span>`}
+								</div>
+							</div>
+						`).join("")}
+					</div>
+				`}
+			</div>
+		`;
+
+		const subCodesBtn = container.querySelector("#owner-sub-codes");
+		const subUsersBtn = container.querySelector("#owner-sub-users");
+		const refBtn = container.querySelector("#owner-refresh-btn");
+		if (subCodesBtn) subCodesBtn.onclick = () => { subTab = "codes"; feedback = null; render(); };
+		if (subUsersBtn) subUsersBtn.onclick = () => { subTab = "users"; feedback = null; render(); };
+		if (refBtn) refBtn.onclick = () => loadOwnerData();
+
+		const genBtn = container.querySelector("#owner-gen-code-btn");
+		if (genBtn) {
+			genBtn.onclick = () => {
+				newCodeVal = window.VeilAuth.generateRandomVipCode();
+				const inp = container.querySelector("#owner-code-input");
+				if (inp) inp.value = newCodeVal;
+			};
+		}
+
+		const codeInput = container.querySelector("#owner-code-input");
+		if (codeInput) codeInput.oninput = (e) => { newCodeVal = e.target.value; };
+		const usageSel = container.querySelector("#owner-usage-mode");
+		if (usageSel) usageSel.onchange = (e) => { usageMode = e.target.value; render(); };
+		const maxUsesInp = container.querySelector("#owner-max-uses");
+		if (maxUsesInp) maxUsesInp.oninput = (e) => { maxUsesVal = e.target.value; };
+		const expSel = container.querySelector("#owner-exp-preset");
+		if (expSel) expSel.onchange = (e) => { expPreset = e.target.value; render(); };
+		const expCustomInp = container.querySelector("#owner-exp-custom");
+		if (expCustomInp) expCustomInp.oninput = (e) => { expCustom = e.target.value; };
+		const noteInp = container.querySelector("#owner-note-input");
+		if (noteInp) noteInp.oninput = (e) => { ownerNoteVal = e.target.value; };
+
+		const createForm = container.querySelector("#owner-create-code-form");
+		if (createForm) {
+			createForm.onsubmit = async (e) => {
+				e.preventDefault();
+				feedback = null;
+				try {
+					const maxUses = usageMode === "unlimited" ? null : Number(maxUsesVal || 1);
+					const expiresAt = parseExpirationSelection(expPreset, expCustom);
+					if (expPreset === "custom" && !expiresAt) {
+						throw new Error("Choose a valid custom expiration date/time.");
+					}
+					const created = await window.VeilAuth.createVipCode({
+						code: newCodeVal,
+						maxUses,
+						expiresAt,
+						ownerNote: ownerNoteVal,
+					});
+					newCodeVal = "";
+					ownerNoteVal = "";
+					feedback = { type: "ok", text: `Created VIP code ${created.code}` };
+					await loadOwnerData();
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Failed to create VIP code." };
+					render();
+				}
+			};
+		}
+
+		container.querySelectorAll(".owner-copy-code").forEach((btn) => {
+			btn.onclick = () => {
+				const c = btn.getAttribute("data-copy-code");
+				navigator.clipboard?.writeText(c);
+				feedback = { type: "ok", text: `Copied ${c} to clipboard.` };
+				render();
+			};
+		});
+
+		container.querySelectorAll(".owner-toggle-code").forEach((btn) => {
+			btn.onclick = async () => {
+				const c = btn.getAttribute("data-toggle-code");
+				const curActive = btn.getAttribute("data-active") === "1";
+				try {
+					await window.VeilAuth.updateVipCode(c, { active: !curActive });
+					await loadOwnerData();
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Failed to update code." };
+					render();
+				}
+			};
+		});
+
+		container.querySelectorAll(".owner-del-code").forEach((btn) => {
+			btn.onclick = () => {
+				confirmDeleteCode = btn.getAttribute("data-del-code");
+				render();
+			};
+		});
+
+		container.querySelectorAll(".owner-del-confirm").forEach((btn) => {
+			btn.onclick = async () => {
+				const c = btn.getAttribute("data-del-confirm");
+				confirmDeleteCode = null;
+				try {
+					await window.VeilAuth.deleteVipCode(c);
+					feedback = { type: "ok", text: `Deleted VIP code ${c}.` };
+					await loadOwnerData();
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Failed to delete code." };
+					render();
+				}
+			};
+		});
+
+		container.querySelectorAll(".owner-edit-note-btn").forEach((btn) => {
+			btn.onclick = () => {
+				const c = btn.getAttribute("data-edit-note");
+				editingNoteCode = editingNoteCode === c ? null : c;
+				render();
+			};
+		});
+
+		container.querySelectorAll(".owner-save-note").forEach((btn) => {
+			btn.onclick = async () => {
+				const c = btn.getAttribute("data-save-note");
+				const inp = container.querySelector(`[data-note-input="${CSS.escape(c)}"]`);
+				const nextNote = inp ? inp.value : "";
+				try {
+					await window.VeilAuth.updateVipCode(c, { ownerNote: nextNote });
+					editingNoteCode = null;
+					feedback = { type: "ok", text: `Updated private note on ${c}.` };
+					await loadOwnerData();
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Failed to update note." };
+					render();
+				}
+			};
+		});
+
+		const manualInp = container.querySelector("#owner-manual-target");
+		if (manualInp) manualInp.oninput = (e) => { manualTargetVal = e.target.value; };
+		const manualExpSel = container.querySelector("#owner-manual-exp");
+		if (manualExpSel) manualExpSel.onchange = (e) => { manualExpPreset = e.target.value; render(); };
+		const manualCustomInp = container.querySelector("#owner-manual-custom-exp");
+		if (manualCustomInp) manualCustomInp.oninput = (e) => { manualExpCustom = e.target.value; };
+
+		const manualForm = container.querySelector("#owner-manual-assign-form");
+		if (manualForm) {
+			manualForm.onsubmit = async (e) => {
+				e.preventDefault();
+				const raw = manualTargetVal.trim();
+				if (!raw) return;
+				try {
+					const expiresAt = parseExpirationSelection(manualExpPreset, manualExpCustom);
+					const isEmail = raw.includes("@");
+					await window.VeilAuth.assignUserVip({
+						email: isEmail ? raw : null,
+						username: isEmail ? null : raw.replace(/^@/, ""),
+						active: true,
+						expiresAt,
+					});
+					manualTargetVal = "";
+					feedback = { type: "ok", text: `Granted VIP to ${raw}` };
+					await loadOwnerData();
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Failed to grant VIP." };
+					render();
+				}
+			};
+		}
+
+		const userSearchInp = container.querySelector("#owner-user-search");
+		if (userSearchInp) {
+			userSearchInp.oninput = (e) => {
+				searchUsers = e.target.value;
+				render();
+				const next = container.querySelector("#owner-user-search");
+				if (next) {
+					next.focus();
+					next.selectionStart = next.selectionEnd = next.value.length;
+				}
+			};
+		}
+
+		container.querySelectorAll(".owner-vip-btn").forEach((btn) => {
+			btn.onclick = async () => {
+				const uid = btn.getAttribute("data-vip-uid") || null;
+				const email = btn.getAttribute("data-vip-email") || null;
+				const username = btn.getAttribute("data-vip-name") || null;
+				const grant = btn.getAttribute("data-vip-action") === "grant";
+				try {
+					await window.VeilAuth.assignUserVip({ uid, email, username, active: grant, expiresAt: null });
+					feedback = { type: "ok", text: `${grant ? "Granted" : "Revoked"} VIP for @${username || email}` };
+					await loadOwnerData();
+				} catch (err) {
+					feedback = { type: "error", text: err.message || "Failed to update VIP status." };
+					render();
+				}
+			};
+		});
+	}
+
+	loadOwnerData();
+	container.__refreshPanel = loadOwnerData;
+}
+
+function mountLockScreenAuthCard(container, osInstance) {
+	let authMode = "signin";
+	let emailVal = "";
+	let passVal = "";
+	let usernameVal = "";
+	let avatarDataUrl = "";
+	let avatarFileName = "Optional profile picture...";
+	let busy = false;
+	let errorMsg = "";
+
+	function render() {
+		const auth = getVeilAuthState();
+		const isAccount = auth.mode === "account";
+		const isOwner = Boolean(auth.isOwner);
+		const isVip = Boolean(isOwner || hasVipAccess());
+
+		if (isAccount) {
+			container.innerHTML = `
+				<div class="w-full flex flex-col items-center gap-3.5 text-center">
+					<div class="relative group">
+						<div class="w-20 h-20 rounded-full bg-[#181822] flex items-center justify-center shadow-xl border-2 border-indigo-400/50 overflow-hidden shrink-0">
+							${auth.photoURL
+								? `<img src="${escapeHtml(auth.photoURL)}" alt="" class="w-full h-full object-cover" />`
+								: `<span class="text-2xl font-bold text-indigo-300">${escapeHtml((auth.username || "V").charAt(0).toUpperCase())}</span>`
+							}
+						</div>
+					</div>
+					<div class="flex flex-col items-center gap-1">
+						<div class="flex items-center gap-2">
+							<h2 class="text-base sm:text-lg font-bold tracking-tight text-white">@${escapeHtml(auth.username)}</h2>
+							${isOwner
+								? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-400/40">Owner</span>`
+								: isVip
+								? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">VIP</span>`
+								: ""
+							}
+						</div>
+						<span class="text-[11px] text-neutral-400">${escapeHtml(auth.email || "Onyx Chat Account")}</span>
+					</div>
+					<div class="w-full flex flex-col gap-2 mt-1">
+						<button type="button" id="lock-enter-os-btn"
+							class="group relative w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-xl active:scale-95 cursor-pointer flex items-center justify-center gap-2.5">
+							<span>Enter VeilOS</span>
+							<i class="fa-solid fa-arrow-right text-xs transition-transform duration-300 group-hover:translate-x-1"></i>
+						</button>
+						<div class="grid grid-cols-2 gap-2">
+							<button type="button" id="lock-signout-btn"
+								class="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-[11px] font-semibold cursor-pointer transition-colors">
+								Sign Out
+							</button>
+							<button type="button" id="lock-guest-btn"
+								class="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-[11px] font-semibold cursor-pointer transition-colors">
+								Continue as Guest
+							</button>
+						</div>
+					</div>
+				</div>
+			`;
+			const enterBtn = container.querySelector("#lock-enter-os-btn");
+			if (enterBtn) enterBtn.onclick = () => osInstance.unlockOS();
+			const signOutBtn = container.querySelector("#lock-signout-btn");
+			if (signOutBtn) {
+				signOutBtn.onclick = async () => {
+					await window.VeilAuth.signOut();
+					render();
+				};
+			}
+			const guestBtn = container.querySelector("#lock-guest-btn");
+			if (guestBtn) {
+				guestBtn.onclick = async () => {
+					await window.VeilAuth.continueAsGuest();
+					osInstance.unlockOS();
+				};
+			}
+			return;
+		}
+
+		container.innerHTML = `
+			<div class="w-full flex flex-col items-center gap-3 text-center">
+				<div class="flex items-center gap-2.5">
+					<div class="w-10 h-10 rounded-2xl bg-[#181822] border border-indigo-400/40 flex items-center justify-center shadow-lg">
+						<svg viewBox="0 0 64 64" class="w-6 h-6" aria-label="VeilOS">
+							<defs>
+								<linearGradient id="veilLockGradMini" x1="0%" y1="0%" x2="100%" y2="100%">
+									<stop offset="0%" stop-color="#6366f1"/>
+									<stop offset="100%" stop-color="#38bdf8"/>
+								</linearGradient>
+							</defs>
+							<path d="M12 14L32 52L52 14H41.5L32 33.5L22.5 14H12Z" fill="url(#veilLockGradMini)"/>
+						</svg>
+					</div>
+					<div class="text-left">
+						<div class="tracking-[0.2em] font-bold uppercase text-xs text-indigo-400">VEILOS</div>
+						<div class="text-xs text-neutral-300 font-medium">Sign in with your Onyx Chat account</div>
+					</div>
+				</div>
+
+				<div class="w-full grid grid-cols-2 gap-1 p-1 rounded-xl bg-black/45 border border-white/10">
+					<button type="button" id="lock-tab-signin" class="py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${authMode === "signin" ? "bg-indigo-600 text-white" : "text-neutral-400 hover:text-white"}">Sign In</button>
+					<button type="button" id="lock-tab-signup" class="py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${authMode === "signup" ? "bg-indigo-600 text-white" : "text-neutral-400 hover:text-white"}">Create Account</button>
+				</div>
+
+				${errorMsg ? `
+					<div class="w-full p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-200 text-[11px] text-left">
+						${escapeHtml(errorMsg)}
+					</div>
+				` : ""}
+
+				<form id="lock-auth-form" class="w-full flex flex-col gap-2 text-left">
+					<input id="lock-email" type="email" required value="${escapeHtml(emailVal)}" placeholder="Email address"
+						class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
+					<input id="lock-password" type="password" required value="${escapeHtml(passVal)}" placeholder="Password"
+						class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
+					${authMode === "signup" ? `
+						<input id="lock-username" type="text" required maxlength="20" value="${escapeHtml(usernameVal)}" placeholder="Unique username"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
+						<label class="w-full px-3 py-2 rounded-xl bg-black/40 border border-dashed border-white/20 hover:border-indigo-400/50 text-[11px] text-neutral-300 cursor-pointer text-center truncate">
+							<i class="fa-solid fa-image mr-1.5 text-indigo-400"></i>${escapeHtml(avatarFileName)}
+							<input id="lock-avatar-file" type="file" accept="image/*" class="hidden" />
+						</label>
+					` : ""}
+					<button type="submit" ${busy ? "disabled" : ""}
+						class="w-full py-2.5 mt-0.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 hover:from-indigo-500 hover:to-sky-400 disabled:opacity-55 text-white font-bold text-xs tracking-wider uppercase shadow-xl cursor-pointer transition-all">
+						${busy ? "Signing In..." : (authMode === "signup" ? "Create Account & Enter" : "Sign In & Enter")}
+					</button>
+				</form>
+
+				<div class="w-full flex items-center gap-2 text-[10px] text-neutral-500 uppercase tracking-wider">
+					<div class="flex-1 h-px bg-white/10"></div>
+					<span>or</span>
+					<div class="flex-1 h-px bg-white/10"></div>
+				</div>
+
+				<button type="button" id="lock-continue-guest-btn"
+					class="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 text-neutral-200 hover:text-white font-semibold text-xs cursor-pointer transition-colors flex items-center justify-center gap-2">
+					<i class="fa-regular fa-user text-neutral-400"></i>
+					<span>Continue as Guest</span>
+				</button>
+			</div>
+		`;
+
+		const tabIn = container.querySelector("#lock-tab-signin");
+		const tabUp = container.querySelector("#lock-tab-signup");
+		if (tabIn) tabIn.onclick = () => { authMode = "signin"; errorMsg = ""; render(); };
+		if (tabUp) tabUp.onclick = () => { authMode = "signup"; errorMsg = ""; render(); };
+
+		const emInp = container.querySelector("#lock-email");
+		const pwInp = container.querySelector("#lock-password");
+		const unInp = container.querySelector("#lock-username");
+		if (emInp) emInp.oninput = (e) => { emailVal = e.target.value; };
+		if (pwInp) pwInp.oninput = (e) => { passVal = e.target.value; };
+		if (unInp) unInp.oninput = (e) => { usernameVal = e.target.value; };
+
+		const fileInp = container.querySelector("#lock-avatar-file");
+		if (fileInp) {
+			fileInp.onchange = async (e) => {
+				const file = e.target.files?.[0];
+				if (!file || !window.VeilAuth) return;
+				avatarFileName = file.name;
+				try {
+					avatarDataUrl = await window.VeilAuth.compressAvatarFile(file);
+				} catch (_) {}
+				render();
+			};
+		}
+
+		const form = container.querySelector("#lock-auth-form");
+		if (form) {
+			form.onsubmit = async (e) => {
+				e.preventDefault();
+				if (busy) return;
+				if (!window.VeilAuth) {
+					errorMsg = "Account service is still loading. Please try again.";
+					render();
+					return;
+				}
+				busy = true;
+				errorMsg = "";
+				render();
+				try {
+					if (authMode === "signup") {
+						await window.VeilAuth.signUp({
+							email: emailVal,
+							password: passVal,
+							username: usernameVal,
+							photoDataUrl: avatarDataUrl,
+						});
+					} else {
+						await window.VeilAuth.signIn(emailVal, passVal);
+					}
+					passVal = "";
+					osInstance.unlockOS();
+				} catch (err) {
+					errorMsg = err.message || "Sign in failed.";
+				} finally {
+					busy = false;
+					render();
+				}
+			};
+		}
+
+		const guestBtn = container.querySelector("#lock-continue-guest-btn");
+		if (guestBtn) {
+			guestBtn.onclick = async () => {
+				if (window.VeilAuth) {
+					await window.VeilAuth.continueAsGuest();
+				}
+				osInstance.unlockOS();
+			};
+		}
+	}
+
+	render();
+	container.__refreshLockAuth = render;
+}
+
 function Config() {
 	this.cfgTab = "search";
+	this.cfgTick = 0;
+
+	window.__setCfgTab = (tabName) => {
+		if (tabName === "owner" && !(window.VeilAuth && window.VeilAuth.isOwner())) {
+			this.cfgTab = "vip";
+		} else {
+			this.cfgTab = tabName || "search";
+		}
+		this.cfgTick = (this.cfgTick || 0) + 1;
+	};
+	const refreshActiveCfgSlots = () => {
+		document.querySelectorAll("[data-veil-cfg-slot]").forEach((el) => {
+			if (typeof el.__refreshPanel === "function") el.__refreshPanel();
+		});
+	};
+	window.__refreshCfgPanels = () => {
+		if (this.cfgTab === "owner" && !(window.VeilAuth && window.VeilAuth.isOwner())) {
+			this.cfgTab = "vip";
+		}
+		this.cfgTick = (this.cfgTick || 0) + 1;
+		refreshActiveCfgSlots();
+	};
+	if (window.VeilAuth && typeof window.VeilAuth.subscribe === "function") {
+		window.VeilAuth.subscribe(() => {
+			if (this.cfgTab === "owner" && !window.VeilAuth.isOwner()) {
+				this.cfgTab = "vip";
+			}
+			this.cfgTick = (this.cfgTick || 0) + 1;
+			refreshActiveCfgSlots();
+		});
+	}
 
 	this.css = `
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -303,8 +1317,8 @@ function Config() {
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       padding: 24px;
-      max-width: 520px;
-      width: 92%;
+      max-width: 600px;
+      width: 94%;
       box-sizing: border-box;
       max-height: 88vh;
       overflow-y: auto;
@@ -547,15 +1561,43 @@ function Config() {
         <div class="tab-pills">
           <button class=${use(this.cfgTab, (t) => t === "search" ? "active" : "")} on:click=${() => { this.cfgTab = "search"; }}>
             <i class="fa-solid fa-magnifying-glass"></i>
-            <span>Search Engine</span>
+            <span>Search</span>
           </button>
           <button class=${use(this.cfgTab, (t) => t === "cloak" ? "active" : "")} on:click=${() => { this.cfgTab = "cloak"; }}>
             <i class="fa-solid fa-user-secret"></i>
-            <span>Cloaking Hub</span>
+            <span>Cloaking</span>
           </button>
+          <button class=${use(this.cfgTab, (t) => t === "vip" ? "active" : "")} on:click=${() => { this.cfgTab = "vip"; }}>
+            <i class="fa-solid fa-crown text-amber-400"></i>
+            <span>Account &amp; VIP</span>
+          </button>
+          ${use(this.cfgTick, () => {
+						const isOwn = window.VeilAuth && window.VeilAuth.isOwner && window.VeilAuth.isOwner();
+						if (!isOwn) return null;
+						return html`
+              <button class=${use(this.cfgTab, (t) => t === "owner" ? "active" : "")} on:click=${() => { this.cfgTab = "owner"; }}>
+                <i class="fa-solid fa-shield-halved text-amber-400"></i>
+                <span>Owner</span>
+              </button>
+            `;
+					})}
         </div>
 
         ${use(this.cfgTab, (tab) => {
+					if (tab === "vip") {
+						const slot = document.createElement("div");
+						slot.setAttribute("data-veil-cfg-slot", "vip");
+						slot.className = "mb-4 animate-fade";
+						mountSettingsVipPanel(slot);
+						return slot;
+					}
+					if (tab === "owner") {
+						const slot = document.createElement("div");
+						slot.setAttribute("data-veil-cfg-slot", "owner");
+						slot.className = "mb-4 animate-fade";
+						mountSettingsOwnerPanel(slot);
+						return slot;
+					}
 					if (tab === "search") {
 						const curEng = (store.searchEngine || "google").toLowerCase();
 						const engines = [
@@ -1404,10 +2446,24 @@ window.addEventListener("load", async () => {
 				const textCol = document.createElement("div");
 				textCol.className = "flex flex-col min-w-0";
 
+				const nameRow = document.createElement("div");
+				nameRow.className = "flex items-center gap-1.5 min-w-0";
+
 				const nameSpan = document.createElement("span");
 				nameSpan.className = "text-xs font-semibold text-white truncate";
 				nameSpan.textContent = app.name;
-				textCol.appendChild(nameSpan);
+				nameRow.appendChild(nameSpan);
+
+				if (VIP_GATED_APPS.has(app.id)) {
+					const vipPill = document.createElement("span");
+					vipPill.className = hasVipAccess()
+						? "px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shrink-0"
+						: "px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-400/30 shrink-0";
+					vipPill.textContent = "VIP";
+					nameRow.appendChild(vipPill);
+				}
+
+				textCol.appendChild(nameRow);
 
 				const descSpan = document.createElement("span");
 				descSpan.className = "text-[11px] text-neutral-400 truncate";
@@ -1596,25 +2652,239 @@ window.addEventListener("load", async () => {
 		checkPing();
 		setInterval(checkPing, 20000);
 
+		this.startTour = (force = false) => {
+			if (!force) {
+				try {
+					if (localStorage.getItem("veilos_tour_completed") === "1") return;
+				} catch (_) {}
+			}
+			const existingOverlay = document.getElementById("veilos-tour-overlay");
+			if (existingOverlay) existingOverlay.remove();
+
+			const steps = [
+				{
+					title: "Welcome to VeilOS",
+					body: "Your browser-based desktop workspace. Launch apps, browse through Scramjet, and chat with your Onyx Chat account across every app.",
+					targetId: null,
+					position: "center",
+				},
+				{
+					title: "App Dock & Running Apps",
+					body: "Launch Onyx Browser, SSV Movies, Pulse Games, and Onyx Chat from the dock, or check the live clock at the right.",
+					targetId: "veil-app-dock",
+					position: "top",
+				},
+				{
+					title: "Quick Search & Spotlight (⌘K)",
+					body: "Press ⌘K (or Ctrl+K) or click search anytime to jump straight to any app, calculate math, or open a website.",
+					targetId: "veil-dock-spotlight",
+					position: "top",
+				},
+				{
+					title: "Onyx Chat & Account Sync",
+					body: "Your Onyx Chat login syncs across VeilOS automatically. Switch between your account and Guest mode anytime.",
+					targetId: "veil-dock-app-chat",
+					position: "top",
+				},
+				{
+					title: "VeilOS Menu & Appearance",
+					body: "Open the VeilOS menu to toggle Sound Effects, Desktop Widgets, Tab Cloaking, Lock Screen, or replay this tour.",
+					targetId: "veil-start-btn",
+					position: "right",
+				},
+				{
+					title: "VIP Apps & Settings",
+					body: "Redeem a VIP code in Preferences to unlock SSV Movies, Scenario, Sonora, and Cloud Gaming.",
+					targetId: "veil-top-widgets",
+					position: "bottom",
+					actionLabel: "Open Account & VIP Settings",
+					action: () => window.openSettingsModal("vip"),
+				},
+			];
+
+			let stepIdx = 0;
+			const overlay = document.createElement("div");
+			overlay.id = "veilos-tour-overlay";
+			overlay.className = "fixed inset-0 z-[9998] pointer-events-auto";
+			overlay.style.zIndex = "9998";
+
+			const backdrop = document.createElement("div");
+			backdrop.className = "absolute inset-0 bg-black/60 backdrop-blur-[2px]";
+			overlay.appendChild(backdrop);
+
+			const highlightBox = document.createElement("div");
+			highlightBox.className = "fixed rounded-2xl border-2 border-indigo-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.45),0_0_32px_rgba(99,102,241,0.55)] pointer-events-none transition-all duration-200";
+			overlay.appendChild(highlightBox);
+
+			const card = document.createElement("div");
+			card.className = "fixed w-[330px] max-w-[calc(100vw-24px)] bg-[#111118]/98 border border-indigo-400/40 rounded-2xl p-4 shadow-2xl text-white font-sans flex flex-col gap-3";
+			overlay.appendChild(card);
+
+			const finishTour = () => {
+				try { localStorage.setItem("veilos_tour_completed", "1"); } catch (_) {}
+				window.removeEventListener("resize", renderStep);
+				window.removeEventListener("keydown", onTourKey);
+				overlay.remove();
+			};
+
+			const onTourKey = (ev) => {
+				if (ev.key === "Escape") {
+					ev.preventDefault();
+					finishTour();
+				}
+			};
+
+			const renderStep = () => {
+				const step = steps[stepIdx];
+				const target = step.targetId ? document.getElementById(step.targetId) : null;
+				const rect = target && target.offsetParent !== null ? target.getBoundingClientRect() : null;
+
+				if (rect && rect.width > 0 && rect.height > 0) {
+					const pad = 6;
+					highlightBox.style.display = "block";
+					highlightBox.style.left = `${Math.max(4, rect.left - pad)}px`;
+					highlightBox.style.top = `${Math.max(4, rect.top - pad)}px`;
+					highlightBox.style.width = `${rect.width + pad * 2}px`;
+					highlightBox.style.height = `${rect.height + pad * 2}px`;
+					backdrop.style.display = "none";
+
+					const cardW = Math.min(330, window.innerWidth - 24);
+					const cardH = 210;
+					let left = rect.left + rect.width / 2 - cardW / 2;
+					let top = rect.top - cardH - 16;
+
+					if (step.position === "bottom" || top < 12) {
+						top = rect.bottom + 14;
+					}
+					if (step.position === "right") {
+						left = rect.right + 16;
+						top = rect.bottom - cardH;
+					}
+					left = Math.max(12, Math.min(window.innerWidth - cardW - 12, left));
+					top = Math.max(12, Math.min(window.innerHeight - cardH - 12, top));
+					card.style.left = `${left}px`;
+					card.style.top = `${top}px`;
+					card.style.transform = "none";
+				} else {
+					highlightBox.style.display = "none";
+					backdrop.style.display = "block";
+					card.style.left = "50%";
+					card.style.top = "50%";
+					card.style.transform = "translate(-50%, -50%)";
+				}
+
+				const isLast = stepIdx === steps.length - 1;
+				card.innerHTML = `
+					<div class="flex items-center justify-between">
+						<span class="px-2 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-400/35 text-[10px] font-bold uppercase tracking-wider text-indigo-300 font-mono tabular-nums">
+							Step ${stepIdx + 1} of ${steps.length}
+						</span>
+						<button type="button" id="tour-skip-btn" class="text-[11px] text-neutral-400 hover:text-white cursor-pointer">Skip Tour</button>
+					</div>
+					<div>
+						<h3 class="text-sm font-bold text-white tracking-tight">${escapeHtml(step.title)}</h3>
+						<p class="text-xs text-neutral-300 leading-relaxed mt-1">${escapeHtml(step.body)}</p>
+					</div>
+					${step.actionLabel ? `
+						<button type="button" id="tour-action-btn" class="w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-xs font-semibold cursor-pointer transition-colors">
+							${escapeHtml(step.actionLabel)}
+						</button>
+					` : ""}
+					<div class="flex items-center justify-between gap-2 pt-1 border-t border-white/10">
+						<button type="button" id="tour-back-btn" ${stepIdx === 0 ? "disabled" : ""}
+							class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-35 text-xs font-medium text-neutral-300 cursor-pointer">
+							Back
+						</button>
+						<button type="button" id="tour-next-btn"
+							class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer">
+							${isLast ? "Finish Tour" : "Next"}
+						</button>
+					</div>
+				`;
+
+				const skipBtn = card.querySelector("#tour-skip-btn");
+				const backBtn = card.querySelector("#tour-back-btn");
+				const nextBtn = card.querySelector("#tour-next-btn");
+				const actBtn = card.querySelector("#tour-action-btn");
+
+				if (skipBtn) skipBtn.onclick = finishTour;
+				if (backBtn) backBtn.onclick = () => { if (stepIdx > 0) { stepIdx--; renderStep(); } };
+				if (nextBtn) nextBtn.onclick = () => {
+					if (isLast) finishTour();
+					else { stepIdx++; renderStep(); }
+				};
+				if (actBtn && step.action) {
+					actBtn.onclick = () => {
+						finishTour();
+						step.action();
+					};
+				}
+			};
+
+			document.body.appendChild(overlay);
+			window.addEventListener("resize", renderStep);
+			window.addEventListener("keydown", onTourKey);
+			renderStep();
+		};
+
 		this.unlockOS = () => {
 			if (this.isUnlocking) return;
 			this.isUnlocking = true;
 			(window.SpadeAudio || window.VeilAudio) && (window.SpadeAudio || window.VeilAudio).playChime();
 			const lockEl = document.getElementById("veil-lock-screen") || document.getElementById("spade-lock-screen");
-			if (lockEl) {
-				lockEl.classList.add("animate-lock-unlock");
-				setTimeout(() => {
-					this.isLocked = false;
-					this.isUnlocking = false;
-					lockEl.classList.remove("animate-lock-unlock");
-					this.windows = [...this.windows];
-				}, 380);
-			} else {
+			const finishUnlock = () => {
 				this.isLocked = false;
 				this.isUnlocking = false;
+				if (lockEl) lockEl.classList.remove("animate-lock-unlock");
+				this.windows = [...this.windows];
+				setTimeout(() => this.startTour(false), 320);
+			};
+			if (lockEl) {
+				lockEl.classList.add("animate-lock-unlock");
+				setTimeout(finishUnlock, 380);
+			} else {
+				finishUnlock();
+			}
+		};
+
+		this.syncVipGatedWindows = () => {
+			const unlocked = hasVipAccess();
+			let changed = false;
+			this.windows.forEach((w) => {
+				if (!VIP_GATED_APPS.has(w.appId)) return;
+				const shouldBeLocked = !unlocked;
+				if (Boolean(w.__vipLocked) !== shouldBeLocked) {
+					changed = true;
+					if (w.customState && typeof w.customState.cleanup === "function") {
+						try { w.customState.cleanup(); } catch (_) {}
+					}
+					w.contentEl = null;
+					w.customState = {};
+					if (w.domEl) {
+						const body = w.domEl.querySelector('[data-win-body="1"]');
+						if (body) {
+							body.innerHTML = "";
+							const nextEl = renderAppContent(w, scramjet, this);
+							if (nextEl) body.appendChild(nextEl);
+						}
+					}
+				}
+			});
+			if (changed) {
 				this.windows = [...this.windows];
 			}
 		};
+
+		if (window.VeilAuth && typeof window.VeilAuth.subscribe === "function") {
+			window.VeilAuth.subscribe(() => {
+				this.syncVipGatedWindows();
+				const lockCard = document.getElementById("veil-lock-auth-slot");
+				if (lockCard && typeof lockCard.__refreshLockAuth === "function") {
+					lockCard.__refreshLockAuth();
+				}
+				this.windows = [...this.windows];
+			});
+		}
 
 		this.windowsContainer = document.createElement("div");
 		this.windowsContainer.id = "os-windows-layer";
@@ -1642,8 +2912,15 @@ window.addEventListener("load", async () => {
 
 		// Global Keydown Listener for commands, Escape key exit, & ⌘K search shortcut
 		window.addEventListener("keydown", (e) => {
-			if (this.isLocked && (e.key === "Enter" || e.key === " " || e.key === "Spacebar")) {
-				this.unlockOS();
+			if (this.isLocked) {
+				const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : "";
+				if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || (e.target && e.target.isContentEditable)) {
+					return;
+				}
+				const authSt = getVeilAuthState();
+				if ((authSt.mode === "account" || authSt.mode === "guest") && (e.key === "Enter" || e.key === " " || e.key === "Spacebar")) {
+					this.unlockOS();
+				}
 				return;
 			}
 			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -1983,7 +3260,7 @@ window.addEventListener("load", async () => {
 				${use(this.desktopWidgetsOpen, (isOpen) => {
 					if (!isOpen) return null;
 					return html`
-						<div class="fixed top-4 right-4 z-20 hidden md:flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-[#111118]/85 border border-white/15 backdrop-blur-xl shadow-xl text-neutral-200 font-sans pointer-events-auto">
+						<div id="veil-top-widgets" class="fixed top-4 right-4 z-20 hidden md:flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-[#111118]/85 border border-white/15 backdrop-blur-xl shadow-xl text-neutral-200 font-sans pointer-events-auto">
 							<div class="flex items-center gap-1.5 text-xs font-mono tabular-nums" title="Battery: ${this.batteryLevel}% ${this.isCharging ? '(Charging)' : ''}">
 								<i class="fa-solid ${this.isCharging ? 'fa-battery-bolt text-emerald-400' : (this.batteryLevel < 20 ? 'fa-battery-quarter text-rose-400' : 'fa-battery-three-quarters text-amber-400')} text-xs"></i>
 								<span>${this.batteryLevel}%</span>
@@ -2037,7 +3314,7 @@ window.addEventListener("load", async () => {
 						this.windows = [...this.windows];
 					}}></div>
 
-				<button class="fixed bottom-4 left-4 z-50 w-11 h-11 rounded-full bg-[#111118]/85 hover:bg-[#181822] border border-white/15 backdrop-blur-2xl text-white flex items-center justify-center text-lg shadow-2xl cursor-pointer hover:scale-105 active:scale-95 transition-all"
+				<button id="veil-start-btn" class="fixed bottom-4 left-4 z-50 w-11 h-11 rounded-full bg-[#111118]/85 hover:bg-[#181822] border border-white/15 backdrop-blur-2xl text-white flex items-center justify-center text-lg shadow-2xl cursor-pointer hover:scale-105 active:scale-95 transition-all"
 					style=${use(this.windows, () => {
 						const active = this.windows.find(w => w.id === this.activeWinId);
 						return (active && active.isMaximized && !active.isMinimized) ? "display: none !important;" : "";
@@ -2128,6 +3405,36 @@ window.addEventListener("load", async () => {
 						</button>
 					</div>
 
+					${use(this.windows, () => {
+						const a = getVeilAuthState();
+						const isOwn = Boolean(a.isOwner);
+						const isVip = Boolean(isOwn || hasVipAccess());
+						return html`
+							<button class="w-full flex items-center justify-between p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs cursor-pointer transition-colors"
+								on:click=${() => {
+									this.startMenuOpen = false;
+									this.windows = [...this.windows];
+									window.openSettingsModal(isOwn ? "owner" : "vip");
+								}}>
+								<div class="flex items-center gap-2.5 min-w-0">
+									<div class="w-7 h-7 rounded-xl bg-indigo-500/20 border border-indigo-400/35 flex items-center justify-center text-indigo-300 shrink-0 overflow-hidden">
+										${a.mode === "account" && a.photoURL
+											? html`<img src="${a.photoURL}" class="w-full h-full object-cover" />`
+											: html`<i class="fa-solid fa-user text-xs"></i>`
+										}
+									</div>
+									<div class="flex flex-col text-left min-w-0">
+										<span class="font-semibold text-white text-xs truncate">${a.mode === "account" ? "@" + a.username : (a.mode === "guest" ? "Guest Session" : "Sign In")}</span>
+										<span class="text-[10px] ${isOwn ? "text-amber-300" : isVip ? "text-emerald-300" : "text-neutral-400"}">
+											${isOwn ? "Owner Mode" : isVip ? "VIP Active" : "Redeem VIP / Account"}
+										</span>
+									</div>
+								</div>
+								<i class="fa-solid fa-crown text-xs ${isOwn || isVip ? "text-amber-400" : "text-neutral-500"}"></i>
+							</button>
+						`;
+					})}
+
 					<button class="w-full flex items-center justify-between p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs text-neutral-200 hover:text-white cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
 						on:click=${() => {
 							this.startMenuOpen = false;
@@ -2139,6 +3446,21 @@ window.addEventListener("load", async () => {
 								<i class="fa-solid fa-gear text-xs"></i>
 							</div>
 							<span class="text-xs font-semibold">VeilOS Preferences & Cloak</span>
+						</div>
+						<i class="fa-solid fa-chevron-right text-[10px] text-neutral-400"></i>
+					</button>
+
+					<button class="w-full flex items-center justify-between p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs text-neutral-200 hover:text-white cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
+						on:click=${() => {
+							this.startMenuOpen = false;
+							this.windows = [...this.windows];
+							this.startTour(true);
+						}} title="Interactive VeilOS Walkthrough">
+						<div class="flex items-center gap-2.5">
+							<div class="w-6 h-6 rounded-lg bg-sky-500/20 border border-sky-400/35 flex items-center justify-center text-sky-400">
+								<i class="fa-solid fa-compass text-xs"></i>
+							</div>
+							<span class="text-xs font-semibold">Interactive Tour</span>
 						</div>
 						<i class="fa-solid fa-chevron-right text-[10px] text-neutral-400"></i>
 					</button>
@@ -2195,14 +3517,14 @@ window.addEventListener("load", async () => {
 					</div>
 				</div>
 
-				<div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 px-3.5 py-2 bg-[#111118]/85 border border-white/15 shadow-2xl rounded-3xl backdrop-blur-2xl text-white max-w-[96vw] overflow-visible transition-all"
+				<div id="veil-app-dock" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 px-3.5 py-2 bg-[#111118]/85 border border-white/15 shadow-2xl rounded-3xl backdrop-blur-2xl text-white max-w-[96vw] overflow-visible transition-all"
 					style=${use(this.windows, () => {
 						const active = this.windows.find(w => w.id === this.activeWinId);
 						if (active && active.isMaximized && !active.isMinimized) return "display: none !important;";
 						return this.dockOpen ? "display: flex;" : "display: none;";
 					})}>
 
-					<button class="w-9 h-9 rounded-2xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/35 active:scale-95 transition-all flex items-center justify-center text-indigo-300 hover:text-white cursor-pointer shrink-0 dock-icon-anim"
+					<button id="veil-dock-spotlight" class="w-9 h-9 rounded-2xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/35 active:scale-95 transition-all flex items-center justify-center text-indigo-300 hover:text-white cursor-pointer shrink-0 dock-icon-anim"
 						on:click=${(e) => {
 							e.stopPropagation();
 							this.openSpotlight();
@@ -2215,13 +3537,15 @@ window.addEventListener("load", async () => {
 					<div class="flex items-center gap-2 shrink-0">
 						${APPS.filter(app => app.inDock).map(app => {
 							const iconCls = `${app.iconClass || 'fa-solid fa-shapes'} text-lg ${app.iconColor || 'text-white'} drop-shadow-md`;
+							const isGated = VIP_GATED_APPS.has(app.id);
 							return html`
-								<div class="relative group flex items-center justify-center w-10 h-10 rounded-2xl bg-white/10 hover:bg-indigo-500/20 active:scale-95 dock-icon-anim cursor-pointer shadow-md shrink-0 border border-white/15 hover:border-indigo-400/45 transition-all hover:scale-105"
+								<div id="veil-dock-app-${app.id}" class="relative group flex items-center justify-center w-10 h-10 rounded-2xl bg-white/10 hover:bg-indigo-500/20 active:scale-95 dock-icon-anim cursor-pointer shadow-md shrink-0 border border-white/15 hover:border-indigo-400/45 transition-all hover:scale-105"
 									on:click=${() => this.openApp(app.id)}>
 									
 									<div class="absolute -top-11 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center pointer-events-none z-50 animate-fade">
 										<div class="px-2.5 py-1 rounded-xl bg-[#111118]/98 border border-white/15 backdrop-blur-2xl shadow-2xl text-white text-xs font-semibold whitespace-nowrap flex items-center gap-1.5">
 											<span>${app.name}</span>
+											${isGated ? html`<span class="text-[9px] font-bold uppercase text-amber-300">VIP</span>` : null}
 										</div>
 										<div class="w-2 h-2 bg-[#111118] border-b border-r border-white/15 rotate-45 -mt-1"></div>
 									</div>
@@ -2289,20 +3613,20 @@ window.addEventListener("load", async () => {
 								<i class="fa-solid fa-folder-open text-amber-400 w-4"></i>
 								<span>Veil Files</span>
 							</button>
-							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
+							<button class="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("ai"); }}>
-								<i class="fa-solid fa-diamond text-purple-400 w-4"></i>
-								<span>Scenario</span>
+								<span class="flex items-center gap-2.5"><i class="fa-solid fa-diamond text-purple-400 w-4"></i><span>Scenario</span></span>
+								<span class="text-[9px] font-bold uppercase text-amber-300">VIP</span>
 							</button>
 							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("chat"); }}>
 								<i class="fa-solid fa-message text-emerald-400 w-4"></i>
 								<span>Onyx Chat</span>
 							</button>
-							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
+							<button class="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/10 text-neutral-200 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("music"); }}>
-								<i class="fa-solid fa-music text-rose-400 w-4"></i>
-								<span>Sonora</span>
+								<span class="flex items-center gap-2.5"><i class="fa-solid fa-music text-rose-400 w-4"></i><span>Sonora</span></span>
+								<span class="text-[9px] font-bold uppercase text-amber-300">VIP</span>
 							</button>
 							<button class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-indigo-300 hover:text-white transition-colors cursor-pointer text-left"
 								on:click=${() => { this.contextMenu.open = false; this.openApp("changelog"); }}>
@@ -2345,38 +3669,14 @@ window.addEventListener("load", async () => {
 								</div>
 							</div>
 
-							<div class="w-full bg-[#111118]/85 border border-white/15 p-5 sm:p-6 rounded-3xl backdrop-blur-2xl shadow-2xl flex flex-col items-center gap-3.5 transition-all duration-300 hover:border-indigo-400/40">
-								<div class="relative group">
-									<div class="absolute -inset-1.5 rounded-full bg-gradient-to-r from-indigo-500 via-sky-400 to-indigo-500 opacity-65 blur-md animate-veil-glow"></div>
-									<div class="relative w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500/20 via-[#111118] to-sky-500/20 flex items-center justify-center shadow-xl border-2 border-indigo-400/45 overflow-hidden animate-veil-float p-1 shrink-0">
-										<svg viewBox="0 0 64 64" class="w-11 h-11 drop-shadow-md transition-transform duration-500 group-hover:scale-110" aria-label="VeilOS">
-											<defs>
-												<linearGradient id="veilLockGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-													<stop offset="0%" stop-color="#6366f1"/>
-													<stop offset="100%" stop-color="#38bdf8"/>
-												</linearGradient>
-											</defs>
-											<path d="M12 14L32 52L52 14H41.5L32 33.5L22.5 14H12Z" fill="url(#veilLockGrad)"/>
-										</svg>
-									</div>
-								</div>
-
-								<div class="flex flex-col items-center gap-0.5 text-center">
-									<h2 class="text-base sm:text-lg font-bold tracking-tight text-white">${use(this.windows, () => (store && store.osUsername) ? store.osUsername : "Veil User")}</h2>
-									<div class="flex items-center gap-2">
-										<span class="tracking-[0.22em] font-bold uppercase text-sm text-indigo-400">VEILOS</span>
-										<span class="text-[11px] text-neutral-400 font-medium">Web Desktop OS</span>
-									</div>
-								</div>
-
-								<div class="w-full mt-0.5">
-									<button type="button"
-										class="group relative w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs tracking-wider uppercase transition-all duration-300 shadow-xl hover:shadow-indigo-500/35 active:scale-95 cursor-pointer flex items-center justify-center gap-2.5 overflow-hidden shimmer-btn"
-										on:click=${() => this.unlockOS()}>
-										<span class="relative z-10">Sign In</span>
-										<i class="fa-solid fa-arrow-right text-xs relative z-10 transition-transform duration-300 group-hover:translate-x-1.5"></i>
-									</button>
-								</div>
+							<div class="w-full bg-[#111118]/90 border border-white/15 p-5 sm:p-6 rounded-3xl backdrop-blur-2xl shadow-2xl flex flex-col items-center transition-all duration-300 hover:border-indigo-400/40">
+								${(() => {
+									const slot = document.createElement("div");
+									slot.id = "veil-lock-auth-slot";
+									slot.className = "w-full";
+									mountLockScreenAuthCard(slot, this);
+									return slot;
+								})()}
 							</div>
 						</div>
 
@@ -2552,7 +3852,7 @@ window.addEventListener("load", async () => {
 					<div class="w-12"></div>
 				</div>
 
-				<div class="flex-1 w-full h-full relative overflow-hidden bg-neutral-950">
+				<div data-win-body="1" class="flex-1 w-full h-full relative overflow-hidden bg-neutral-950">
 					${contentEl}
 				</div>
 
@@ -2570,10 +3870,19 @@ window.addEventListener("load", async () => {
 	}
 
 	function renderAppContent(win, scramjet, osInstance) {
-		if (win.contentEl) {
+		const appId = win.appId;
+		const isGated = VIP_GATED_APPS.has(appId);
+		const unlocked = !isGated || hasVipAccess();
+		if (win.contentEl && Boolean(win.__vipLocked) === !unlocked) {
 			return win.contentEl;
 		}
-		const appId = win.appId;
+		if (isGated && !unlocked) {
+			win.__vipLocked = true;
+			const gateEl = renderVipGateView(appId, win, osInstance);
+			win.contentEl = gateEl;
+			return gateEl;
+		}
+		win.__vipLocked = false;
 		let el;
 		if (appId === "browser") {
 			el = renderBrowserApp(win, scramjet, osInstance);
@@ -4335,6 +5644,73 @@ window.addEventListener("load", async () => {
 			else if (currentSection === "settings") {
 				const settingsWrap = document.createElement("div");
 				settingsWrap.className = "flex flex-col gap-6 max-w-3xl";
+
+				const vipSec = document.createElement("div");
+				vipSec.className = "p-5 rounded-2xl bg-[#111118]/90 border border-amber-500/25 flex flex-col gap-3";
+				const aState = getVeilAuthState();
+				const isOwn = Boolean(aState.isOwner);
+				const isVip = Boolean(isOwn || hasVipAccess());
+				vipSec.innerHTML = `
+					<div class="flex items-center justify-between gap-2 flex-wrap">
+						<div class="flex items-center gap-2.5">
+							<i class="fa-solid fa-crown text-amber-400 text-lg"></i>
+							<div>
+								<h3 class="text-sm font-bold text-white">Account &amp; VIP Membership</h3>
+								<p class="text-xs text-neutral-400">
+									${aState.mode === "account"
+										? `Signed in as @${escapeHtml(aState.username)} (${escapeHtml(aState.email || "")})`
+										: aState.mode === "guest"
+										? "Currently browsing as Guest"
+										: "Not signed in"}
+								</p>
+							</div>
+						</div>
+						<span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+							isOwn
+								? "bg-amber-500/20 text-amber-300 border-amber-400/40"
+								: isVip
+								? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+								: "bg-white/10 text-neutral-300 border-white/10"
+						}">
+							${isOwn ? "Owner Mode" : isVip ? "VIP Active" : "Free / Guest"}
+						</span>
+					</div>
+					<form id="onyx-vip-redeem-form" class="flex gap-2">
+						<input id="onyx-vip-code-input" type="text" placeholder="Enter VIP code (e.g. VEIL-XXXX-XXXX)"
+							class="flex-1 px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white font-mono uppercase placeholder-neutral-500 outline-none focus:border-amber-400" />
+						<button type="submit" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold cursor-pointer">Redeem VIP</button>
+						<button type="button" id="onyx-open-vip-cfg" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold cursor-pointer">
+							${isOwn ? "Owner Panel" : "Account"}
+						</button>
+					</form>
+					<div id="onyx-vip-feedback" class="hidden text-xs p-2.5 rounded-xl border"></div>
+				`;
+				const oRedeemForm = vipSec.querySelector("#onyx-vip-redeem-form");
+				const oFeedback = vipSec.querySelector("#onyx-vip-feedback");
+				if (oRedeemForm) {
+					oRedeemForm.onsubmit = async (ev) => {
+						ev.preventDefault();
+						const codeVal = vipSec.querySelector("#onyx-vip-code-input")?.value || "";
+						try {
+							const res = await window.VeilAuth.redeemVipCode(codeVal);
+							if (oFeedback) {
+								oFeedback.className = "text-xs p-2.5 rounded-xl border bg-emerald-500/15 border-emerald-500/35 text-emerald-200";
+								oFeedback.textContent = `VIP activated (${res.code})! Expires: ${formatVipExpiry(res.expiresAt)}`;
+							}
+							setTimeout(() => renderInternalPageView(tabObj, targetUrl), 900);
+						} catch (err) {
+							if (oFeedback) {
+								oFeedback.className = "text-xs p-2.5 rounded-xl border bg-rose-500/15 border-rose-500/35 text-rose-200";
+								oFeedback.textContent = err.message || "Could not redeem VIP code.";
+							}
+						}
+					};
+				}
+				const oCfgBtn = vipSec.querySelector("#onyx-open-vip-cfg");
+				if (oCfgBtn) {
+					oCfgBtn.onclick = () => window.openSettingsModal(isOwn ? "owner" : "vip");
+				}
+				settingsWrap.appendChild(vipSec);
 
 				const themeSec = document.createElement("div");
 				themeSec.className = "p-5 rounded-2xl bg-[#111118]/90 border border-white/15 flex flex-col gap-4";

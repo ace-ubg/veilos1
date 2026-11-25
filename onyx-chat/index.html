@@ -8,5 +8,12 @@
   <body class="bg-black text-white m-0 p-0 overflow-hidden">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script src="https://vtx.chat/sdk/v1/vortex.js"></script>
+    <script>
+      if (typeof Vortex !== "undefined" && !window.vortex) {
+        const vortex = Vortex.init({ clientId: "vtx_c441bad3feda17fccd10" });
+        window.vortex = vortex;
+      }
+    </script>
   </body>
 </html>

@@ -74,9 +74,29 @@ export default function App() {
   };
 
   useEffect(() => {
+    const w = window as any;
+    if (typeof w.Vortex !== 'undefined' && !w.vortex) {
+      try {
+        w.vortex = w.Vortex.init({ clientId: 'vtx_c441bad3feda17fccd10' });
+      } catch (e) {
+        console.warn('Vortex init warning:', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     let unsubscribeUserDoc: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            { type: 'veilos-onyx-auth', signedIn: Boolean(user), uid: user?.uid || null },
+            window.location.origin
+          );
+        }
+      } catch {}
+
       if (unsubscribeUserDoc) {
         unsubscribeUserDoc();
         unsubscribeUserDoc = null;
