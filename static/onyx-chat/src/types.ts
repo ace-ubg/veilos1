@@ -16,7 +16,6 @@ export interface UserProfile {
   tags?: string[];
   friends?: string[];
   friendRequestsIncoming?: string[];
-  tempPassword?: string;
   warnings?: { text: string; date: any; read?: boolean }[];
   timeoutUntil?: any;
   createdAt?: any;
@@ -47,7 +46,6 @@ export interface CurrentUser {
   friendRequestsIncoming?: string[];
   bio?: string;
   timeoutUntil?: any;
-  tempPassword?: string;
   joinNumber?: number;
 }
 

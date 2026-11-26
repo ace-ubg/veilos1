@@ -7,10 +7,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { GoogleGenAI } from "@google/genai";
 import ts from "typescript";
+import { webstoreEntries } from "./lib/webstore-data.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -44,11 +45,11 @@ if (!process.env.VERCEL) {
 
 const bare = createBareServer("/bare/", {
 	logErrors: true,
-	blockLocal: false,
+	blockLocal: true,
 });
 
-wisp.options.allow_loopback_ips = true;
-wisp.options.allow_private_ips = true;
+wisp.options.allow_loopback_ips = false;
+wisp.options.allow_private_ips = false;
 wisp.options.hostname_blacklist = [/\.invalid$/i];
 
 const fastify = Fastify({
@@ -918,44 +919,20 @@ fastify.get("/api/webstore/search", async (request, reply) => {
 			}
 		}
 
-		const cbMatches = [...html.matchAll(/AF_initDataCallback\(([\s\S]*?)\);<\/script>/g)];
-		for (const match of cbMatches) {
-			const raw = match[1];
-			if (raw.includes("https://lh3.googleusercontent.com") || raw.includes("data:")) {
-				try {
-					const fn = new Function("AF_initDataCallback", "AF_initDataCallback(" + raw + ")");
-					fn((obj) => {
-						function walk(node) {
-							if (!node || typeof node !== "object") return;
-							if (Array.isArray(node)) {
-								if (
-									typeof node[0] === "string" &&
-									/^[a-z]{32}$/.test(node[0]) &&
-									typeof node[2] === "string"
-								) {
-									const id = node[0];
-									if (!seenIds.has(id)) {
-										seenIds.add(id);
-										items.push({
-											id,
-											icon: typeof node[1] === "string" ? node[1] : "",
-											name: typeof node[2] === "string" ? node[2] : "Chrome Extension",
-											rating: typeof node[3] === "number" ? Math.round(node[3] * 10) / 10 : null,
-											ratingCount: typeof node[4] === "number" ? node[4] : null,
-											description: typeof node[6] === "string" ? node[6] : "",
-											users: typeof node[14] === "number" ? node[14] : null,
-											category: "Chrome Web Store"
-										});
-									}
-								}
-								for (const child of node) walk(child);
-							}
-						}
-						walk(obj.data);
-					});
-				} catch {
-				}
-			}
+		for (const row of webstoreEntries(html)) {
+			const id = row[0];
+			if (seenIds.has(id)) continue;
+			seenIds.add(id);
+			items.push({
+				id,
+				icon: typeof row[1] === "string" ? row[1] : "",
+				name: row[2],
+				rating: typeof row[3] === "number" ? Math.round(row[3] * 10) / 10 : null,
+				ratingCount: typeof row[4] === "number" ? row[4] : null,
+				description: typeof row[6] === "string" ? row[6] : "",
+				users: typeof row[14] === "number" ? row[14] : null,
+				category: "Chrome Web Store"
+			});
 		}
 
 		if (items.length === 0) {
@@ -1075,14 +1052,6 @@ if (!process.env.VERCEL) {
 	console.log(`Listening on http://localhost:${PORT}/`);
 
 	if (process.env.NODE_ENV !== "production" && existsSync(join(__dirname, ".git"))) {
-		try {
-			writeFileSync(
-				join(__dirname, ".git/hooks/pre-commit"),
-				"pnpm format\ngit update-index --again"
-			);
-			chmodSync(join(__dirname, ".git/hooks/pre-commit"), 0o755);
-		} catch {}
-
 		const [{ default: rspackConfig }, { rspack }] = await Promise.all([
 			import("./rspack.config.js"),
 			import("@rspack/core"),

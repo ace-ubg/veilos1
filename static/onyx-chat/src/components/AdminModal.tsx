@@ -309,8 +309,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <br />
                 <span className="text-white font-semibold">• 🚫 Ban / Unban User</span>
                 <br />
-                <span className="text-white font-semibold">• 🔑 Reset Password</span>
-                <br />
                 <span className="text-white font-semibold">• 💀 Terminate Account</span>
               </p>
             </div>

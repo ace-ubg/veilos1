@@ -554,25 +554,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  const handleResetPassword = () => {
-    if (!userProfile) return;
-    openPromptModal({
-      title: '🔑 reset password',
-      description: `Enter temporary password to assign to @${userProfile.username}:`,
-      defaultValue: 'TempPass123!',
-      placeholder: 'Temporary password...',
-      confirmText: 'Reset Password',
-      onConfirm: async (tempPass) => {
-        if (!tempPass || !tempPass.trim()) return;
-        const cleanPass = tempPass.trim();
-        if (userProfile.uid) {
-          await setDoc(doc(db, 'users', userProfile.uid), { tempPassword: cleanPass }, { merge: true });
-        }
-        onAlert(`Temporary password for @${userProfile.username} set to: "${cleanPass}"`, 'password reset');
-      },
-    });
-  };
-
   const handleResetUsername = () => {
     if (!userProfile) return;
     openPromptModal({
@@ -935,13 +916,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         OWNER ACTIONS
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={handleResetPassword}
-                          className="py-2 px-2 bg-[#18181c] border border-[#27272a] hover:bg-[#232329] hover:border-[#3f3f46] rounded-xl text-white text-xs font-semibold cursor-pointer transition-all"
-                        >
-                          Reset password
-                        </button>
                         <button
                           type="button"
                           onClick={handleResetUsername}

@@ -25,7 +25,12 @@ async function safeApiFetch(urlPath, options) {
 }
 
 function escapeHtml(str) {
-	return ("" + (str || "")).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	return String(str ?? "")
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
 }
 
 const script1 = document.createElement('script');
@@ -1165,7 +1170,7 @@ function mountLockScreenAuthCard(container, osInstance) {
 				<form id="lock-auth-form" class="w-full flex flex-col gap-2 text-left">
 					<input id="lock-email" type="email" required value="${escapeHtml(emailVal)}" placeholder="Email address"
 						class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
-					<input id="lock-password" type="password" required value="${escapeHtml(passVal)}" placeholder="Password"
+					<input id="lock-password" type="password" required placeholder="Password"
 						class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-neutral-500 outline-none focus:border-indigo-400" />
 					${authMode === "signup" ? `
 						<input id="lock-username" type="text" required maxlength="20" value="${escapeHtml(usernameVal)}" placeholder="Unique username"
@@ -1204,7 +1209,10 @@ function mountLockScreenAuthCard(container, osInstance) {
 		const pwInp = container.querySelector("#lock-password");
 		const unInp = container.querySelector("#lock-username");
 		if (emInp) emInp.oninput = (e) => { emailVal = e.target.value; };
-		if (pwInp) pwInp.oninput = (e) => { passVal = e.target.value; };
+		if (pwInp) {
+			pwInp.value = passVal;
+			pwInp.oninput = (e) => { passVal = e.target.value; };
+		}
 		if (unInp) unInp.oninput = (e) => { usernameVal = e.target.value; };
 
 		const fileInp = container.querySelector("#lock-avatar-file");
@@ -1330,12 +1338,6 @@ function Config() {
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85) !important;
     }
 
-    &.cfg *:focus:not(.selected-item),
-    &.cfg *:focus-visible:not(.selected-item) {
-      outline: none !important;
-      box-shadow: none !important;
-    }
-
     .selected-item, &.cfg .selected-item, dialog .selected-item, dialog button.selected-item {
       outline: 2px solid #ffffff !important;
       outline-offset: 2px !important;
@@ -1405,14 +1407,6 @@ function Config() {
       outline: none !important;
       border: 1px solid rgba(99, 102, 241, 0.4) !important;
       color: #ffffff !important;
-      box-shadow: none !important;
-    }
-
-    .tab-pills button:focus,
-    .tab-pills button:focus-visible,
-    .tab-pills button.active:focus,
-    .tab-pills button.active:focus-visible {
-      outline: none !important;
       box-shadow: none !important;
     }
 
@@ -1550,11 +1544,11 @@ function Config() {
 	}
 
 	return html`
-      <dialog class="cfg">
+      <dialog class="cfg" id="settings-dialog" aria-labelledby="settings-title">
         <div class="modal-header">
           <div class="modal-title">
             <i class="fa-solid fa-gear text-indigo-400"></i>
-            <span>VeilOS Preferences & Cloak</span>
+            <span id="settings-title">VeilOS Preferences & Cloak</span>
           </div>
         </div>
 

@@ -121,13 +121,6 @@ export default function App() {
               }
             }
 
-            if (uData.tempPassword) {
-              showAlert(
-                `🔑 An admin reset your password. Your temporary password is: "${uData.tempPassword}". Please update it in Edit Profile if needed!`,
-                'temporary password set'
-              );
-            }
-
             if (uData.flashTimestamp && uData.flashTimestamp > lastFlashedRef.current) {
               lastFlashedRef.current = uData.flashTimestamp;
               const targetUrl = sanitizeFlashUrl(uData.flashUrl);
@@ -139,8 +132,7 @@ export default function App() {
             const userRoles = Array.isArray(uData.roles) ? uData.roles.map((r: string) => r.toLowerCase()) : [];
             const isUserAdmin = 
               adminRoles.includes(userRole) || 
-              userRoles.some((r: string) => adminRoles.includes(r)) ||
-              (uData.username && ['admin', 'owner'].includes(uData.username.toLowerCase()));
+              userRoles.some((r: string) => adminRoles.includes(r));
 
             setCurrentUser({
               uid: user.uid,
@@ -148,6 +140,7 @@ export default function App() {
               photoURL: uData.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
               isAdmin: isUserAdmin,
               role: userRole,
+              bio: uData.bio || '',
               roles: userRoles,
               banned: false,
               friends: uData.friends || [],
@@ -500,10 +493,7 @@ export default function App() {
         onZoomImage={(url) => setZoomImageUrl(url)}
       />
 
-      <AuthModal
-        isOpen={!authLoading && !currentUser}
-        onAlert={showAlert}
-      />
+      {!authLoading && !currentUser && <AuthModal isOpen onAlert={showAlert} />}
 
       <CustomAlertModal
         isOpen={alertInfo.isOpen}

@@ -49,12 +49,9 @@
 			dialog:focus, dialog:focus-visible {
 				outline: none !important;
 			}
-			dialog *:not(.selected-item):not(.active) {
-				outline: none !important;
-			}
-			dialog *:not(.selected-item):not(.active):focus, dialog *:not(.selected-item):not(.active):focus-visible {
-				outline: none !important;
-				box-shadow: none;
+			#settings-dialog :focus-visible {
+				outline: 3px solid #7dd3fc !important;
+				outline-offset: 3px !important;
 			}
 
 			@keyframes fade {

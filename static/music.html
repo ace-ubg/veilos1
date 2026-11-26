@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sonora — High Fidelity Music Streaming</title>
 <meta name="description" content="Lossless and high-bitrate music streaming powered by Sonora audio engine.">
 <meta property="og:title" content="Sonora">
@@ -489,6 +489,16 @@
     min-width: 0;
   }
 
+  .track-link {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .track-link:disabled { cursor: default; }
+
   .track-title {
     font-size: 0.925rem;
     font-weight: 600;
@@ -554,6 +564,8 @@
   }
 
   .album-card {
+    text-align: left;
+    font-family: inherit;
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
@@ -605,6 +617,7 @@
   }
 
   .artist-card {
+    font-family: inherit;
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
@@ -1123,7 +1136,7 @@
 
       <div class="search-wrapper">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" id="q" class="search-input" placeholder="Search songs, artists, albums..." autocomplete="off">
+        <input type="search" id="q" class="search-input" aria-label="Search songs, artists, and albums" placeholder="Search songs, artists, albums..." autocomplete="off">
         <button class="search-clear" id="searchClear" aria-label="Clear search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -1343,13 +1356,14 @@
   </div>
 </footer>
 
-<audio id="audioEngine" preload="auto"></audio>
+<audio id="audioEngine" preload="none"></audio>
 
 <div class="toast" id="toast">
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
   <span id="toastMsg">Action successful</span>
 </div>
 
+<script>
 const API_BASE = "https://veilos-s-production.up.railway.app";
 let _apiBaseReachable = null;
 
@@ -1376,6 +1390,28 @@ async function safeApiFetch(urlPath, options) {
   return fetch(urlPath, options);
 }
 
+function readPreference(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key));
+  } catch {
+    return null;
+  }
+}
+
+function readTracks(key) {
+  const list = readPreference(key);
+  return Array.isArray(list) ? list.filter(track => track && track.id != null) : [];
+}
+
+function savePreference(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // The player remains usable when browser storage is full or disabled.
+  }
+}
+
+const savedVolume = readPreference('sonora_vol');
 // State Store
 const state = {
   currentTrack: null,
@@ -1384,14 +1420,14 @@ const state = {
   isPlaying: false,
   isShuffle: false,
   isRepeat: false,
-  likedTracks: JSON.parse(localStorage.getItem('sonora_liked') || '[]'),
-  history: JSON.parse(localStorage.getItem('sonora_history') || '[]'),
+  likedTracks: readTracks('sonora_liked'),
+  history: readTracks('sonora_history'),
   currentSource: 'octave',
   currentTab: 'tracks',
   currentView: 'discover',
   viewHistoryStack: [],
   searchDebounce: null,
-  volume: parseFloat(localStorage.getItem('sonora_vol') || '0.8'),
+  volume: Number.isFinite(savedVolume) ? Math.max(0, Math.min(1, savedVolume)) : 0.8,
   isMuted: false,
   currentAlbumTracks: [],
   currentArtistTracks: []
@@ -1449,30 +1485,19 @@ const DEFAULT_TRENDING_TRACKS = [
 ];
 renderTrackList(DEFAULT_TRENDING_TRACKS, document.getElementById('featuredList'));
 
-// Initialize queue with trending tracks (shows Queue (5) as in Image 2)
+// Stage the featured queue without requesting an audio stream.
 state.queue = [...DEFAULT_TRENDING_TRACKS];
 state.queueIndex = 0;
 updateQueueUI();
 
-// Pre-select Starboy (row highlighted with equalizer bars, bottom player ready, matching Image 2)
 const initialTrack = DEFAULT_TRENDING_TRACKS[0];
 state.currentTrack = initialTrack;
 currentTitle.textContent = initialTrack.title;
 currentArtist.textContent = initialTrack.artist;
 totalTimeEl.textContent = formatDuration(initialTrack.duration);
-currTimeEl.textContent = "0:01";
-seekFill.style.width = "0.4%";
-updatePlayState(true);
-document.querySelectorAll('.track-row').forEach(row => {
-  row.classList.toggle('playing', String(row.dataset.trackId) === String(initialTrack.id));
-});
-const streamParams = new URLSearchParams({ id: String(initialTrack.id) });
-if (initialTrack.source) streamParams.set('source', initialTrack.source);
-if (initialTrack.title) streamParams.set('title', initialTrack.title);
-if (initialTrack.artist) streamParams.set('artist', initialTrack.artist);
-if (initialTrack.duration) streamParams.set('duration', String(initialTrack.duration));
-audio.src = '/api/music/stream?' + streamParams.toString();
-audio.play().catch(() => {});
+currTimeEl.textContent = "0:00";
+seekFill.style.width = "0%";
+updatePlayState(false);
 
 // Navigation Switching
 brandLogo.addEventListener('click', () => switchView('discover'));
@@ -1567,13 +1592,7 @@ async function executeSearch(query) {
     // Render Albums
     const albums = data.albums || [];
     if (albums.length > 0) {
-      albumsGrid.innerHTML = albums.map(a => `
-        <div class="album-card" onclick="openAlbumDetail('${a.id}', '${escapeHtml(a.title)}', '${escapeHtml(a.artist?.name || '')}', '${a.cover || ''}')">
-          <img src="${a.cover || ''}" alt="" class="album-art" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'160\\' height=\\'160\\'%3E%3Crect width=\\'160\\' height=\\'160\\' fill=\\'%2318181f\\'/ %3E%3C/svg%3E'">
-          <div class="album-title">${escapeHtml(a.title)}</div>
-          <div class="album-artist">${escapeHtml(a.artist?.name || 'Unknown Artist')}</div>
-        </div>
-      `).join('');
+      albumsGrid.replaceChildren(...albums.map(album => createAlbumCard(album)));
     } else {
       albumsGrid.innerHTML = `<div class="state-box"><p>No albums found for "${escapeHtml(query)}".</p></div>`;
     }
@@ -1581,12 +1600,7 @@ async function executeSearch(query) {
     // Render Artists
     const artists = data.artists || [];
     if (artists.length > 0) {
-      artistsGrid.innerHTML = artists.map(art => `
-        <div class="artist-card" onclick="openArtistDetail('${art.id}', '${escapeHtml(art.name)}', '${art.picture || ''}')">
-          <img src="${art.picture || ''}" alt="" class="artist-art" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'110\\' height=\\'110\\'%3E%3Crect width=\\'110\\' height=\\'110\\' fill=\\'%2318181f\\'/ %3E%3C/svg%3E'">
-          <div class="artist-name">${escapeHtml(art.name)}</div>
-        </div>
-      `).join('');
+      artistsGrid.replaceChildren(...artists.map(createArtistCard));
     } else {
       artistsGrid.innerHTML = `<div class="state-box"><p>No artists found for "${escapeHtml(query)}".</p></div>`;
     }
@@ -1685,13 +1699,7 @@ async function openArtistDetail(artistId, fallbackName, fallbackPicture) {
     renderTrackList(tracks, topTracksEl);
 
     if (albums.length > 0) {
-      albumsGridEl.innerHTML = albums.map(a => `
-        <div class="album-card" onclick="openAlbumDetail('${a.id}', '${escapeHtml(a.title)}', '${escapeHtml(nameEl.textContent)}', '${a.cover || ''}')">
-          <img src="${a.cover || ''}" alt="" class="album-art" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'160\\' height=\\'160\\'%3E%3Crect width=\\'160\\' height=\\'160\\' fill=\\'%2318181f\\'/ %3E%3C/svg%3E'">
-          <div class="album-title">${escapeHtml(a.title)}</div>
-          <div class="album-artist">${a.releaseDate ? a.releaseDate.split('-')[0] : 'Album'}</div>
-        </div>
-      `).join('');
+      albumsGridEl.replaceChildren(...albums.map(album => createAlbumCard(album, nameEl.textContent)));
     } else {
       albumsGridEl.innerHTML = `<div class="state-box"><p>No albums found for this artist.</p></div>`;
     }
@@ -1707,6 +1715,47 @@ async function openArtistDetail(artistId, fallbackName, fallbackPicture) {
   } catch (err) {
     topTracksEl.innerHTML = `<div class="state-box"><p>Failed to load artist details.</p></div>`;
   }
+}
+
+function setArtwork(image, source) {
+  image.removeAttribute('src');
+  if (source) {
+    image.addEventListener('error', () => image.removeAttribute('src'), { once: true });
+    image.src = source;
+  }
+}
+
+function createAlbumCard(album, discographyArtist) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'album-card';
+  card.innerHTML = '<img class="album-art" alt="" loading="lazy"><span class="album-title"></span><span class="album-artist"></span>';
+  setArtwork(card.querySelector('img'), album.cover);
+  card.querySelector('.album-title').textContent = album.title;
+  const artist = discographyArtist || album.artist?.name || 'Unknown Artist';
+  card.querySelector('.album-artist').textContent = discographyArtist
+    ? String(album.releaseDate || 'Album').split('-')[0]
+    : artist;
+  card.addEventListener('click', () => openAlbumDetail(album.id, album.title, artist, album.cover));
+  return card;
+}
+
+function createArtistCard(artist) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'artist-card';
+  card.innerHTML = '<img class="artist-art" alt="" loading="lazy"><span class="artist-name"></span>';
+  setArtwork(card.querySelector('img'), artist.picture);
+  card.querySelector('.artist-name').textContent = artist.name;
+  card.addEventListener('click', () => openArtistDetail(artist.id, artist.name, artist.picture));
+  return card;
+}
+
+function searchCatalogTerm(term) {
+  clearTimeout(state.searchDebounce);
+  qInput.value = term;
+  searchClearBtn.style.display = 'block';
+  executeSearch(term);
 }
 
 // Render Track Rows
@@ -1734,22 +1783,51 @@ function renderTrackList(tracks, container) {
           <div class="eq-bar"></div>
         </div>
       </div>
-      <img src="${track.artwork || ''}" alt="" class="track-thumb" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'44\\'%3E%3Crect width=\\'44\\' height=\\'44\\' fill=\\'%2318181f\\'/%3E%3C/svg%3E'">
+      <img alt="" class="track-thumb" loading="lazy">
       <div class="track-meta">
-        <div class="track-title">${escapeHtml(track.title)}</div>
-        <div class="track-artist" onclick="event.stopPropagation(); if(track.artistId) openArtistDetail('${track.artistId}', '${escapeHtml(track.artist)}'); else { qInput.value = '${escapeHtml(track.artist)}'; executeSearch('${escapeHtml(track.artist)}'); }">${escapeHtml(track.artist)}</div>
+        <button type="button" class="track-title track-link"></button>
+        <button type="button" class="track-artist track-link"></button>
       </div>
-      <div class="track-album" onclick="event.stopPropagation(); if(track.albumId) openAlbumDetail('${track.albumId}', '${escapeHtml(track.album || '')}', '${escapeHtml(track.artist)}', '${track.artwork || ''}'); else if(track.album) { qInput.value = '${escapeHtml(track.album)}'; executeSearch('${escapeHtml(track.album)}'); }">${escapeHtml(track.album || '—')}</div>
+      <button type="button" class="track-album track-link"></button>
       <div class="track-duration">${formatDuration(track.duration)}</div>
-      <div class="track-actions" onclick="event.stopPropagation()">
-        <button class="action-btn ${isLiked ? 'liked' : ''}" title="${isLiked ? 'Unlike' : 'Like'}" onclick="toggleLikeTrack(${JSON.stringify(track).replace(/"/g, '&quot;')}, this)">
+      <div class="track-actions">
+        <button type="button" class="action-btn like-track ${isLiked ? 'liked' : ''}" title="${isLiked ? 'Unlike' : 'Like'}" aria-pressed="${isLiked}">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
         </button>
-        <button class="action-btn" title="Add to queue" onclick="enqueueTrack(${JSON.stringify(track).replace(/"/g, '&quot;')})">
+        <button type="button" class="action-btn add-track" title="Add to queue">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </button>
       </div>
     `;
+
+    setArtwork(row.querySelector('img'), track.artwork);
+    row.querySelector('.track-title').textContent = track.title;
+    const artistButton = row.querySelector('.track-artist');
+    artistButton.textContent = track.artist || 'Unknown Artist';
+    artistButton.disabled = !track.artistId && !track.artist;
+    artistButton.addEventListener('click', event => {
+      event.stopPropagation();
+      if (track.artistId) openArtistDetail(track.artistId, track.artist);
+      else searchCatalogTerm(track.artist);
+    });
+    const albumButton = row.querySelector('.track-album');
+    albumButton.textContent = track.album || '—';
+    albumButton.disabled = !track.albumId && !track.album;
+    albumButton.addEventListener('click', event => {
+      event.stopPropagation();
+      if (track.albumId) openAlbumDetail(track.albumId, track.album, track.artist, track.artwork);
+      else searchCatalogTerm(track.album);
+    });
+    row.querySelector('.track-actions').addEventListener('click', event => event.stopPropagation());
+    const likeButton = row.querySelector('.like-track');
+    likeButton.addEventListener('click', () => {
+      toggleLikeTrack(track, likeButton);
+      const liked = likeButton.classList.contains('liked');
+      likeButton.title = liked ? 'Unlike' : 'Like';
+      likeButton.setAttribute('aria-pressed', String(liked));
+      likeButton.querySelector('svg').setAttribute('fill', liked ? 'currentColor' : 'none');
+    });
+    row.querySelector('.add-track').addEventListener('click', () => enqueueTrack(track));
 
     row.addEventListener('click', () => {
       state.queue = [...tracks];
@@ -1770,7 +1848,7 @@ function playTrack(track) {
 
   // Add to History
   state.history = [track, ...state.history.filter(t => String(t.id) !== String(track.id))].slice(0, 50);
-  localStorage.setItem('sonora_history', JSON.stringify(state.history));
+  savePreference('sonora_history', state.history);
 
   // Update Player UI
   currentTitle.textContent = track.title || 'Unknown Track';
@@ -1817,6 +1895,7 @@ function playTrack(track) {
 
 function updatePlayState(playing) {
   state.isPlaying = playing;
+  playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
   playIcon.style.display = playing ? 'none' : 'block';
   pauseIcon.style.display = playing ? 'block' : 'none';
 }
@@ -1827,6 +1906,10 @@ audio.addEventListener('error', () => {
 });
 
 playBtn.addEventListener('click', () => {
+  if (state.currentTrack && !audio.getAttribute('src')) {
+    playTrack(state.currentTrack);
+    return;
+  }
   if (!state.currentTrack) {
     if (state.queue.length > 0) {
       state.queueIndex = 0;
@@ -2021,7 +2104,7 @@ function updateVolumeFromEvent(e) {
   state.volume = ratio;
   state.isMuted = false;
   audio.volume = state.volume;
-  localStorage.setItem('sonora_vol', String(state.volume));
+  savePreference('sonora_vol', state.volume);
   updateVolumeUI();
 }
 
@@ -2059,18 +2142,30 @@ function enqueueTrack(track) {
 
 function updateQueueUI() {
   queueCount.textContent = state.queue.length;
-  queueItemsList.innerHTML = state.queue.map((t, idx) => `
-    <div class="track-row ${idx === state.queueIndex ? 'playing' : ''}" style="grid-template-columns: 36px 1fr 30px;" onclick="playQueueIndex(${idx})">
-      <img src="${t.artwork || ''}" alt="" class="track-thumb" style="width: 36px; height: 36px;">
+  const rows = state.queue.map((track, idx) => {
+    const row = document.createElement('div');
+    row.className = idx === state.queueIndex ? 'track-row playing' : 'track-row';
+    row.style.gridTemplateColumns = '36px 1fr 30px';
+    row.innerHTML = `
+      <img alt="" class="track-thumb" style="width: 36px; height: 36px;">
       <div class="track-meta">
-        <div class="track-title" style="font-size: 0.85rem;">${escapeHtml(t.title)}</div>
-        <div class="track-artist" style="font-size: 0.75rem;">${escapeHtml(t.artist)}</div>
+        <button type="button" class="track-title track-link" style="font-size: 0.85rem;"></button>
+        <span class="track-artist" style="font-size: 0.75rem;"></span>
       </div>
-      <button class="action-btn" onclick="event.stopPropagation(); removeQueueIndex(${idx})" title="Remove">
+      <button type="button" class="action-btn" title="Remove from queue">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-    </div>
-  `).join('');
+      </button>`;
+    setArtwork(row.querySelector('img'), track.artwork);
+    row.querySelector('.track-title').textContent = track.title;
+    row.querySelector('.track-artist').textContent = track.artist;
+    row.addEventListener('click', () => playQueueIndex(idx));
+    row.querySelector('.action-btn').addEventListener('click', event => {
+      event.stopPropagation();
+      removeQueueIndex(idx);
+    });
+    return row;
+  });
+  queueItemsList.replaceChildren(...rows);
 }
 
 function playQueueIndex(idx) {
@@ -2099,7 +2194,7 @@ function toggleLikeTrack(track, btnEl) {
     if (btnEl) btnEl.classList.add('liked');
     showToast(`Added to Liked Songs`);
   }
-  localStorage.setItem('sonora_liked', JSON.stringify(state.likedTracks));
+  savePreference('sonora_liked', state.likedTracks);
   updateLikedCount();
   if (state.currentView === 'favorites') renderFavorites();
   
@@ -2128,7 +2223,7 @@ function renderHistory() {
 
 document.getElementById('clearHistoryBtn').addEventListener('click', () => {
   state.history = [];
-  localStorage.setItem('sonora_history', '[]');
+  savePreference('sonora_history', []);
   renderHistory();
   showToast('History cleared');
 });
@@ -2173,7 +2268,8 @@ function escapeHtml(s) {
 
 // Global Keyboard Shortcuts
 window.addEventListener('keydown', (e) => {
-  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey ||
+      e.target.closest?.('input, select, textarea, button, a[href], [contenteditable="true"]')) return;
   if (e.code === 'Space') {
     e.preventDefault();
     playBtn.click();
