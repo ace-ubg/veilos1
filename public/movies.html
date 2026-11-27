@@ -1245,7 +1245,7 @@
             activeContentId: null,
             activeContentType: "movie",
             selectedSource: "videasy",
-            proxyMode: "scramjet",
+            proxyMode: "direct",
             selectedSeason: 1,
             selectedEpisode: 1,
             contentDetails: null,
@@ -1269,7 +1269,7 @@
 
         function getProxiedUrl(targetUrl, forcedMode) {
             if (!targetUrl) return "";
-            const mode = forcedMode || popupState.proxyMode || "scramjet";
+            const mode = forcedMode || popupState.proxyMode || "direct";
 
             if (mode === "direct") {
                 return targetUrl;
@@ -1577,7 +1577,7 @@
             popupState.selectedEpisode = 1;
 
             $("#popupTitle").innerHTML = `<i data-lucide="play" style="color: var(--accent);"></i> <span>${fallbackTitle || "watch stream"}</span>`;
-            $("#popupSubtitle").textContent = `${contentType.toUpperCase()} • PROXIED`;
+            $("#popupSubtitle").textContent = contentType.toUpperCase();
             $("#popupBackBtn").style.display = "inline-flex";
 
             const body = $("#popupBody");
@@ -1590,7 +1590,7 @@
                                 <span>${fallbackYear || ""}</span>
                                 <span class="proxy-status-pill" style="font-size: 10px; padding: 2px 7px;">
                                     <i data-lucide="shield-check"></i>
-                                    <span>Scramjet Proxied Link</span>
+                                    <span>Video player</span>
                                 </span>
                             </p>
                         </div>
@@ -1599,7 +1599,7 @@
                                 <i data-lucide="maximize"></i>
                                 <span>player fullscreen</span>
                             </button>
-                            <button class="outline" onclick="reloadStream()" title="Reload Proxied Stream">
+                            <button class="outline" onclick="reloadStream()" title="Reload stream">
                                 <i data-lucide="rotate-cw"></i>
                             </button>
                         </div>
@@ -1699,7 +1699,7 @@
                     ${content.runtime ? `<span>•</span> <span>${content.runtime} min</span>` : ""}
                     <span class="proxy-status-pill" style="font-size: 10px; padding: 2px 7px;">
                         <i data-lucide="shield-check"></i>
-                        <span>Scramjet Proxied</span>
+                        <span id="watchModeLabel">Video player</span>
                     </span>
                 `;
                 if (window.lucide) lucide.createIcons();
@@ -1815,6 +1815,8 @@
                     : `Active • Scramjet (${source.name.split(" ")[0]})`;
             }
 
+            const modeLabel = $("#watchModeLabel");
+            if (modeLabel) modeLabel.textContent = proxiedUrl === rawUrl ? "Direct embed" : "Scramjet proxied";
             frame.src = proxiedUrl;
 
             frame.onload = () => {
