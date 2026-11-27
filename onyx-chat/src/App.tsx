@@ -11,6 +11,7 @@ import {
   where 
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { initVortex } from './vortex';
 import { ChatMessage, CurrentUser } from './types';
 import { findUserDocByUsername, sanitizeFlashUrl } from './lib/userUtils';
 import { Sidebar } from './components/Sidebar';
@@ -74,29 +75,34 @@ export default function App() {
   };
 
   useEffect(() => {
-    const w = window as any;
-    if (typeof w.Vortex !== 'undefined' && !w.vortex) {
-      try {
-        w.vortex = w.Vortex.init({ clientId: 'vtx_c441bad3feda17fccd10' });
-      } catch (e) {
-        console.warn('Vortex init warning:', e);
-      }
-    }
+    initVortex();
   }, []);
 
   useEffect(() => {
     let unsubscribeUserDoc: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    const syncAccountCache = (payload: any | null) => {
       try {
-        if (window.parent && window.parent !== window) {
-          window.parent.postMessage(
-            { type: 'veilos-onyx-auth', signedIn: Boolean(user), uid: user?.uid || null },
-            window.location.origin
-          );
+        if (payload) {
+          localStorage.setItem('veilos_account', JSON.stringify(payload));
+          localStorage.setItem('osUsername', payload.username);
+        } else {
+          const prevRaw = localStorage.getItem('veilos_account');
+          if (prevRaw) {
+            const parsed = JSON.parse(prevRaw);
+            if (parsed?.mode !== 'guest') {
+              localStorage.removeItem('veilos_account');
+            }
+          }
         }
-      } catch {}
+        window.dispatchEvent(new CustomEvent('veilos-account-sync'));
+        if (window.parent && window.parent !== window) {
+          window.parent.dispatchEvent(new CustomEvent('veilos-account-sync'));
+        }
+      } catch (_) {}
+    };
 
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (unsubscribeUserDoc) {
         unsubscribeUserDoc();
         unsubscribeUserDoc = null;
@@ -104,17 +110,22 @@ export default function App() {
 
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
+        const normalizedEmail = (user.email || '').trim().toLowerCase();
         unsubscribeUserDoc = onSnapshot(
           userDocRef,
           async (snap) => {
             let uData: any = {};
             if (snap.exists()) {
               uData = snap.data();
+              if (normalizedEmail && uData.email !== normalizedEmail) {
+                setDoc(userDocRef, { email: normalizedEmail }, { merge: true }).catch(() => {});
+              }
             } else {
-              const fallbackName = (user.displayName || `user_${user.uid.slice(0, 5)}`).toLowerCase();
+              const fallbackName = (user.displayName || normalizedEmail.split('@')[0] || `user_${user.uid.slice(0, 5)}`).toLowerCase();
               uData = {
                 uid: user.uid,
                 username: fallbackName,
+                email: normalizedEmail,
                 photoURL: user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
                 role: 'user',
                 roles: ['beta tester'],
@@ -127,6 +138,7 @@ export default function App() {
             if (uData.banned) {
               showAlert('Your account has been banned by an admin.', 'banned');
               signOut(auth);
+              syncAccountCache(null);
               setCurrentUser(null);
               setAuthLoading(false);
               return;
@@ -154,10 +166,22 @@ export default function App() {
               adminRoles.includes(userRole) || 
               userRoles.some((r: string) => adminRoles.includes(r));
 
+            const resolvedUsername = uData.username || user.displayName || 'anonymous';
+            const resolvedPhoto = uData.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`;
+
+            syncAccountCache({
+              mode: 'account',
+              uid: user.uid,
+              username: resolvedUsername,
+              email: normalizedEmail || uData.email || '',
+              photoURL: resolvedPhoto,
+              updatedAt: Date.now(),
+            });
+
             setCurrentUser({
               uid: user.uid,
-              username: uData.username || user.displayName || 'anonymous',
-              photoURL: uData.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
+              username: resolvedUsername,
+              photoURL: resolvedPhoto,
               isAdmin: isUserAdmin,
               role: userRole,
               bio: uData.bio || '',
@@ -175,6 +199,7 @@ export default function App() {
           }
         );
       } else {
+        syncAccountCache(null);
         setCurrentUser(null);
         setAuthLoading(false);
       }

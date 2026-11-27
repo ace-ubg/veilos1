@@ -356,8 +356,12 @@
 					};
 					const realId = appAliases[target];
 					if (realId && osInstance) {
-						osInstance.openApp(realId);
-						historyLines.push({ type: "success", text: `[VeilOS] Launched ${realId}` });
+						const launched = osInstance.openApp(realId);
+						if (launched === false) {
+							historyLines.push({ type: "warn", text: `[VeilOS] VIP access required to open ${realId}. Redeem a VIP code in Settings.` });
+						} else {
+							historyLines.push({ type: "success", text: `[VeilOS] Launched ${realId}` });
+						}
 					} else {
 						historyLines.push({ type: "error", text: `Unknown app: '${target}'. Type 'help' for options.` });
 					}
@@ -436,13 +440,13 @@
 
 		const filesData = [
 			{ name: "Onyx Browser.app", type: "app", appId: "browser", icon: "fa-solid fa-bolt", color: "text-sky-400", size: "4.8 MB" },
-			{ name: "SSV Movies.app", type: "app", appId: "movies", icon: "fa-solid fa-film", color: "text-rose-400", size: "5.5 MB" },
+			{ name: "SSV Movies.app", type: "app", appId: "movies", icon: "fa-solid fa-film", color: "text-rose-400", size: "5.5 MB", vipOnly: true },
 			{ name: "Pulse Games.app", type: "app", appId: "games", icon: "fa-solid fa-gamepad", color: "text-violet-400", size: "12.0 MB" },
-			{ name: "Sonora.app", type: "app", appId: "music", icon: "fa-solid fa-music", color: "text-rose-400", size: "7.4 MB" },
-			{ name: "Scenario.app", type: "app", appId: "ai", icon: "fa-solid fa-brain", color: "text-indigo-400", size: "8.2 MB" },
+			{ name: "Sonora.app", type: "app", appId: "music", icon: "fa-solid fa-music", color: "text-rose-400", size: "7.4 MB", vipOnly: true },
+			{ name: "Scenario.app", type: "app", appId: "ai", icon: "fa-solid fa-brain", color: "text-indigo-400", size: "8.2 MB", vipOnly: true },
 			{ name: "Onyx Chat.app", type: "app", appId: "chat", icon: "fa-solid fa-message", color: "text-emerald-400", size: "3.1 MB" },
 			{ name: "Helium Vault.app", type: "app", appId: "vault", icon: "fa-solid fa-vault", color: "text-cyan-400", size: "6.4 MB" },
-			{ name: "Cloud Gaming.app", type: "app", appId: "cloudgaming", icon: "fa-solid fa-cloud", color: "text-teal-400", size: "2.1 MB" },
+			{ name: "Cloud Gaming.app", type: "app", appId: "cloudgaming", icon: "fa-solid fa-cloud", color: "text-teal-400", size: "2.1 MB", vipOnly: true },
 			{ name: "Task Manager.app", type: "app", appId: "activity", icon: "fa-solid fa-chart-line", color: "text-rose-400", size: "1.4 MB" },
 			{ name: "Veil Terminal.app", type: "app", appId: "terminal", icon: "fa-solid fa-terminal", color: "text-emerald-400", size: "1.2 MB" },
 			{ name: "Changelog & Credits.app", type: "app", appId: "changelog", icon: "fa-solid fa-scroll", color: "text-indigo-400", size: "850 KB" }
@@ -491,11 +495,11 @@
 					<div class="flex-1 overflow-y-auto custom-scrollbar p-4">
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
 							${filtered.map(f => {
-								const isVipApp = ["movies", "ai", "music", "cloudgaming"].includes(f.appId);
+								const locked = f.vipOnly && !(window.VeilAuth && window.VeilAuth.hasVipAccess());
 								return `
 								<div data-app-id="${f.appId || ''}" data-file-name="${f.name}"
 									class="file-item relative p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.09] active:scale-95 border border-white/5 hover:border-indigo-400/40 cursor-pointer flex flex-col items-center gap-2 transition-all group">
-									${isVipApp ? `<span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[9px] font-bold tracking-wider uppercase">VIP</span>` : ""}
+									${f.vipOnly ? `<span class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${locked ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/20 text-emerald-300"}">${locked ? '<i class="fa-solid fa-lock mr-1"></i>VIP' : 'VIP'}</span>` : ""}
 									<div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-2xl ${f.color} group-hover:scale-110 transition-transform">
 										<i class="${f.icon}"></i>
 									</div>

@@ -89,6 +89,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onAlert }) => {
         await setDoc(doc(db, 'users', res.user.uid), {
           uid: res.user.uid,
           username: cleanUsername,
+          email: (res.user.email || email || '').trim().toLowerCase(),
           photoURL: avatarUrl,
           role: 'user',
           roles: ['beta tester'],

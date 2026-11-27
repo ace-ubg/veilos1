@@ -56,24 +56,26 @@ if (isVercel) {
 	rmSync(join(outDir, "onyx-chat"), { recursive: true, force: true });
 	rmSync(join(outDir, "chat.html"), { force: true });
 } else if (existsSync(join(root, "onyx-chat"))) {
-	const onyxDistHtml = join(root, "onyx-chat", "dist", "index.html");
-	if (!existsSync(onyxDistHtml)) {
+	const onyxDir = join(root, "onyx-chat");
+	const onyxDistHtml = join(onyxDir, "dist", "index.html");
+	const hasOnyxDeps = existsSync(join(onyxDir, "node_modules", "@tailwindcss", "vite"));
+	if (hasOnyxDeps) {
+		console.log("Compiling Onyx Chat single-file application bundle via Vite...");
+		try {
+			execSync("npx vite build", { cwd: onyxDir, stdio: "inherit" });
+		} catch (e) {
+			console.error("Failed to compile Onyx Chat:", e);
+		}
+	} else if (!existsSync(onyxDistHtml)) {
 		const prebuilt = existsSync(join(root, "static", "chat.html"))
 			? join(root, "static", "chat.html")
 			: (existsSync(join(root, "static", "onyx-chat", "index.html"))
 				? join(root, "static", "onyx-chat", "index.html")
 				: null);
 		if (prebuilt) {
-			mkdirSync(join(root, "onyx-chat", "dist"), { recursive: true });
+			mkdirSync(join(onyxDir, "dist"), { recursive: true });
 			cpSync(prebuilt, onyxDistHtml);
 			console.log("  ✓ Synchronized prebuilt Onyx Chat bundle to onyx-chat/dist/index.html");
-		} else if (existsSync(join(root, "node_modules", "@tailwindcss", "vite"))) {
-			console.log("Compiling Onyx Chat single-file application bundle via Vite...");
-			try {
-				execSync("npx vite build onyx-chat", { cwd: root, stdio: "inherit" });
-			} catch (e) {
-				console.error("Failed to compile Onyx Chat:", e);
-			}
 		}
 	}
 	rmSync(join(outDir, "onyx-chat"), { recursive: true, force: true });
